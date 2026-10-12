@@ -11565,3 +11565,30 @@ table.tir-items-table { min-width: 640px; }
 .irp-btn { @apply inline-flex h-9 items-center rounded-lg border border-gray-300 bg-white px-4 text-[13px] font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50; }
 .irp-btn-primary { @apply border-indigo-600 bg-indigo-600 text-white hover:bg-indigo-700; }
 .irp-hr { @apply border-gray-200; }
+
+/* ── 신고서 서식 · 세무 마감 줄 (2026-10-12 세무 2차 1단계, components/tax-return-sheet.tsx) ── */
+.rtf-wrap { @apply flex flex-col gap-2; }
+.rtf-close { @apply flex flex-wrap items-center justify-between gap-2 border-y border-[var(--border)] px-1 py-2 text-xs text-[var(--text-muted)]; }
+.rtf-close-warn { background: color-mix(in srgb, var(--warning) 8%, transparent); }
+.rtf-close-state b { @apply text-[var(--text)]; }
+.rtf-close-actions { @apply flex flex-wrap items-center gap-1.5; }
+.rtf-warn { color: var(--danger) !important; }
+.rtf-legend { @apply text-[11px] text-[var(--text-dim)]; }
+.rtf-sheet { @apply overflow-x-auto; }
+.rtf-table { @apply w-full border-collapse text-xs; min-width: 760px; }
+.rtf-table th, .rtf-table td { @apply border border-[var(--border)] px-2 py-1 align-middle; }
+.rtf-table th { @apply bg-[var(--bg-surface)] text-center font-bold text-[var(--text-muted)]; }
+.rtf-group { @apply text-center font-bold text-[var(--text)]; writing-mode: vertical-rl; width: 34px; background: color-mix(in srgb, var(--danger) 7%, transparent); }
+.rtf-buy .rtf-group { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.rtf-sub { @apply bg-[var(--bg-surface)] text-center text-[11px] text-[var(--text-muted)]; width: 88px; }
+.rtf-label { @apply text-left text-[var(--text)]; }
+.rtf-src { @apply ml-1.5 text-[10px] text-[var(--text-dim)]; }
+.rtf-no { @apply text-center text-[11px] font-bold; width: 52px; background: color-mix(in srgb, var(--danger) 7%, transparent); }
+.rtf-buy .rtf-no { background: color-mix(in srgb, var(--primary) 8%, transparent); }
+.rtf-num { @apply text-right; width: 150px; font-variant-numeric: tabular-nums; }
+.rtf-rate { @apply text-center text-[11px] text-[var(--text-dim)]; width: 60px; }
+.rtf-sum td { @apply bg-[var(--bg-surface)] font-bold; }
+.rtf-orig { @apply block text-[10px] text-[var(--text-dim)]; }
+.rtf-rev { @apply block font-semibold; }
+.rtf-chg .rtf-rev, .rtf-chg .rtf-input { color: var(--danger); }
+.rtf-input { @apply w-full border-b border-dashed border-[var(--border)] bg-transparent text-right outline-none focus:border-[var(--primary)]; font-variant-numeric: tabular-nums; }

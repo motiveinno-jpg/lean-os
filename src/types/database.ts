@@ -17959,6 +17959,88 @@ export type Database = {
           },
         ]
       }
+      tax_returns: {
+        Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          closed_at: string
+          closed_by: string | null
+          company_id: string
+          created_at: string
+          figures: Json
+          id: string
+          kind: string
+          manual: Json
+          note: string | null
+          period_key: string
+          revision: number
+          schedules: Json
+          source_ids: Json
+          status: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string
+          closed_by?: string | null
+          company_id: string
+          created_at?: string
+          figures?: Json
+          id?: string
+          kind: string
+          manual?: Json
+          note?: string | null
+          period_key: string
+          revision?: number
+          schedules?: Json
+          source_ids?: Json
+          status?: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          closed_at?: string
+          closed_by?: string | null
+          company_id?: string
+          created_at?: string
+          figures?: Json
+          id?: string
+          kind?: string
+          manual?: Json
+          note?: string | null
+          period_key?: string
+          revision?: number
+          schedules?: Json
+          source_ids?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_returns_cancelled_by_fkey"
+            columns: ["cancelled_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_returns_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_returns_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       toss_billing_keys: {
         Row: {
           billing_key_enc: string | null

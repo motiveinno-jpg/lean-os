@@ -34,6 +34,8 @@ import { comparePeople } from "@/lib/people-sort";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
 import { VatReturn, VAT_PERIODS, vatFilingNow, vatDueDate, type VatPeriodKey } from "@/app/(app)/reports/vat/_components/VatReturn";
 import { computeStatements } from "@/lib/closing-snapshot";
+import { TaxReturnSheet } from "@/components/tax-return-sheet";
+import { computeWhtForm } from "@/lib/tax-forms/wht-form";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
 import { fetchJournalLines } from "@/lib/journal-reports";
 import { friendlyError } from "@/lib/friendly-error";
@@ -348,6 +350,18 @@ export default function TaxFilingPage() {
       lastIssued: rows.reduce<string | null>((m, r) => (r.issuedAt && (!m || r.issuedAt > m) ? r.issuedAt : m), null),
     };
   }, [rows, retRows]);
+
+  //   ── 신고서 서식 · 마감 (2026-10-12 세무 2차 1단계) — 숫자는 위 T 그대로(전자신고 파일과 같은 값) ──
+  const canTaxWrite = isMaster || hasPerm("/finance/tax-filing");
+  const whtCompute = useMemo(() => () => computeWhtForm({
+    work: { n: T.work.n, pay: T.work.taxable, tax: T.work.incomeTax },
+    biz: { n: T.biz.n, pay: T.biz.taxable, tax: T.biz.incomeTax },
+    ret: { n: T.ret.n, pay: T.ret.pay, tax: T.ret.incomeTax },
+  }), [T]);
+  const whtSources = useMemo(() => ({
+    payroll: rows.map((r) => `${r.employee_id}:${r.period_month}`),
+    retirement: retRows.filter((r) => !r.irp_deferred).map((r) => r.id),
+  }), [rows, retRows]);
 
   //   근로 간이지급명세서 — 인별 × 월 피벗 (지급액 = 과세, 서식 작성요령과 같다)
   const workStmt = useMemo(() => {
@@ -694,7 +708,7 @@ export default function TaxFilingPage() {
         <QueryBody>
           <div className="ev-scroll fa-scroll">
             {tab === "vat" ? (
-              <VatReturn companyId={companyId} year={year} period={vatPeriod} exportRef={vatExportRef} />
+              <VatReturn companyId={companyId} userId={userId} canWrite={canTaxWrite} year={year} period={vatPeriod} exportRef={vatExportRef} />
             ) : tab === "cit" ? (
               citLoading ? <div className="collect-empty">연간 손익을 계산하는 중…</div> : (
                 <div className="vr-wrap">
@@ -831,6 +845,10 @@ export default function TaxFilingPage() {
                 급여 명세서를 발송하면 신고서에 반영됩니다.<br />
                 <span className="ev-dim">지급이 없어도 <b>무실적 신고</b>는 필요합니다.</span>
               </div>
+              {/*   무실적 달도 0원 신고서를 마감할 수 있게 (2026-10-12 결정 258 · 빈 상태) */}
+              <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
+                periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급 (무실적)`}
+                compute={whtCompute} sources={whtSources} loading={isLoading || retLoading} />
               {retirePanel}
             </>) : (
               <div className="vr-wrap">
@@ -840,27 +858,11 @@ export default function TaxFilingPage() {
                   {" 프리랜서는 사업소득으로 잡힙니다. 퇴직금은 아래 '퇴직소득 지급'에 기록하면 들어갑니다."}
                   <b className="vr-warn"> 기타소득 지급분은 직접 더해 신고하세요.<span className="ui-sub">오너뷰가 기록하지 않는 소득입니다.</span></b>
                 </p>
+                {/*   서식 화면 · 마감 (2026-10-12 세무 2차 1단계, 결정 258~260) — 예전 '원천징수이행상황신고서' 요약 표를 대신한다 */}
+                <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
+                  periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급`}
+                  compute={whtCompute} sources={whtSources} loading={isLoading || retLoading} />
                 <div className="pnl-grid2">
-                  <div className="pnl-panel">
-                    <h3>원천징수이행상황신고서</h3><p>홈택스 신고서 A01{T.ret.n ? "·A22" : ""}{T.biz.n ? "·A25" : ""} 칸에 옮겨 적습니다.</p>
-                    <table className="ev-table ev-lined table-inv-status-sm">
-                      <thead><tr><th>구분</th><th>코드</th><th>인원</th><th>총지급액 (과세)</th><th>징수 소득세</th></tr></thead>
-                      <tbody>
-                        <tr><td className="text-left">근로소득 간이세액</td><td className="tc mono-number">A01</td><td className="tr mono-number">{T.work.n}</td><td className="tr mono-number">{won(T.work.taxable)}</td><td className="tr mono-number">{won(T.work.incomeTax)}</td></tr>
-                        <tr className="vr-sum"><td className="text-left">근로소득 가감계</td><td className="tc mono-number">A10</td><td className="tr mono-number">{T.work.n}</td><td className="tr mono-number">{won(T.work.taxable)}</td><td className="tr mono-number">{won(T.work.incomeTax)}</td></tr>
-                        {T.ret.n > 0 && (<>
-                          <tr><td className="text-left">퇴직소득 그 외</td><td className="tc mono-number">A22</td><td className="tr mono-number">{T.ret.n}</td><td className="tr mono-number">{won(T.ret.pay)}</td><td className="tr mono-number">{won(T.ret.incomeTax)}</td></tr>
-                          <tr className="vr-sum"><td className="text-left">퇴직소득 가감계</td><td className="tc mono-number">A20</td><td className="tr mono-number">{T.ret.n}</td><td className="tr mono-number">{won(T.ret.pay)}</td><td className="tr mono-number">{won(T.ret.incomeTax)}</td></tr>
-                        </>)}
-                        {T.biz.n > 0 && (<>
-                          <tr><td className="text-left">사업소득 매월징수 (3.3%)</td><td className="tc mono-number">A25</td><td className="tr mono-number">{T.biz.n}</td><td className="tr mono-number">{won(T.biz.taxable)}</td><td className="tr mono-number">{won(T.biz.incomeTax)}</td></tr>
-                          <tr className="vr-sum"><td className="text-left">사업소득 가감계</td><td className="tc mono-number">A30</td><td className="tr mono-number">{T.biz.n}</td><td className="tr mono-number">{won(T.biz.taxable)}</td><td className="tr mono-number">{won(T.biz.incomeTax)}</td></tr>
-                        </>)}
-                        <tr className="vr-sum"><td className="text-left">총합계</td><td className="tc mono-number">A99</td><td className="tr mono-number">{T.sum.n}</td><td className="tr mono-number">{won(T.sum.taxable)}</td><td className="tr mono-number">{won(T.sum.incomeTax)}</td></tr>
-                        <tr className="vr-total"><td className="text-left" colSpan={4}><b>납부 세액 (홈택스 · 소득세)</b></td><td className="tr mono-number"><b>{won(T.sum.incomeTax)}</b></td></tr>
-                      </tbody>
-                    </table>
-                  </div>
                   <div className="pnl-panel">
                     <h3>지방소득세 (특별징수)</h3><p>소득세의 10%를 <b>위택스</b>에 따로 신고·납부합니다.</p>
                     <table className="ev-table ev-lined table-inv-status-sm">

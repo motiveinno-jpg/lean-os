@@ -2172,6 +2172,17 @@ function PayrollPreviewTab({ companyId, onSummary }: { companyId: string | null;
 
   const handleSendPayslips = async (employeeIds?: string[]) => {
     if (!companyId || !preview) return;
+    //   원천세를 이미 마감한 달이면 한 번 묻는다 (2026-10-12 세무 2차 결정 258) — 재발송은 payroll_items 를 덮어써
+    //   마감한 신고본과 숫자가 달라질 수 있다(→ 세무 신고에서 수정신고 대상으로 뜬다). 막지는 않는다.
+    //   신고본은 세무 신고 권한자만 읽힌다(RLS) — 권한이 없으면 묻지 않고 지나간다.
+    if (periodMonth) {
+      try {
+        const { listTaxReturns, latestClosed } = await import("@/lib/tax-returns");
+        const filed = latestClosed(await listTaxReturns(companyId, "wht", periodMonth));
+        if (filed && !(await appConfirm(`${periodMonth} 원천세는 이미 마감했습니다(${filed.revision === 0 ? "정기" : `${filed.revision}차 수정`}).
+금액이 바뀌면 재무 › 세무 신고에서 수정신고 대상으로 표시됩니다. 발송할까요?`, { title: "원천세 마감된 달", confirmLabel: "발송" }))) return;
+      } catch { /* 신고본 확인 실패는 발송을 막지 않는다 */ }
+    }
     setSending(true);
     try {
       const { sendPayslipEmails } = await import("@/lib/payment-batch");

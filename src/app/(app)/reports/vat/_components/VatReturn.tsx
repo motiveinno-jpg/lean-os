@@ -22,6 +22,9 @@ import { vatType, summarizeByVatType } from "@/lib/vat-voucher";
 import { todayKst } from "@/lib/kst";
 import { Stat } from "@/components/query-kit";
 import { useToast } from "@/components/toast";
+import { TaxReturnSheet } from "@/components/tax-return-sheet";
+import { computeVatForm, type FormFigures } from "@/lib/tax-forms/vat-form";
+import { listTaxReturns, latestClosed, vatPeriodKey } from "@/lib/tax-returns";
 
 export type VatRow = { id: string; entry_date: string; vat_type: string | null; supply_amount: number; vat_amount: number; description: string | null;
   partnerName: string | null; partnerBizno: string | null; partnerKey: string; electronic: boolean };
@@ -95,7 +98,7 @@ function payableOf(rows: Row[]): number {
 
 //   2026-09-03 대표: 신고기간은 칩 줄이 아니라 연도 옆 셀렉트로 — 조회 줄에 값 칩을 늘어놓지 않는다. 상태는 페이지(세무 신고)가 들고 내려준다.
 //   엑셀 내보내기는 집계(rows·R)가 이 안에 있어 exportRef 로 페이지 조회 줄 버튼에 넘긴다 — 다른 탭처럼 실행 버튼은 조회 줄 오른쪽.
-export function VatReturn({ companyId, year, period, exportRef }: { companyId: string | null; year: number; period: VatPeriodKey; exportRef?: MutableRefObject<(() => void) | null> }) {
+export function VatReturn({ companyId, userId, canWrite, year, period, exportRef }: { companyId: string | null; userId?: string | null; canWrite?: boolean; year: number; period: VatPeriodKey; exportRef?: MutableRefObject<(() => void) | null> }) {
   const { toast } = useToast();
   const P = VAT_PERIODS.find((p) => p.key === period)!;
   const from = `${year}-${P.from}`, to = `${year}-${P.to}`;
@@ -114,6 +117,21 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
     enabled: !!companyId,
     queryFn: () => fetchVatRows(companyId!, prevFrom, prevTo),
   });
+
+  //   ── 신고서 서식 · 마감 (2026-10-12 세무 2차 1단계, 결정 258~260) ──
+  //   ㉓ 예정신고 미환급세액 — 확정 신고면 같은 해 예정 신고본(마감한 숫자)의 차가감 세액이 음수(환급)일 때 그 크기를 기본값으로(결정 265 세무 이월).
+  //   예정 신고 때 환급은 조기환급이 아니면 돌려받지 않고 확정 신고에서 뺀다(부가세법 59조).
+  const prelimKey = period === "1c" ? "1p" : period === "2c" ? "2p" : null;
+  const { data: prelimReturns = [] } = useQuery({
+    queryKey: ["tax-returns", companyId, "vat", prelimKey ? vatPeriodKey(year, prelimKey) : "-"],
+    enabled: !!companyId && !!prelimKey,
+    queryFn: () => listTaxReturns(companyId!, "vat", vatPeriodKey(year, prelimKey!)),
+  });
+  const prelimFiled = latestClosed(prelimReturns);
+  const prelimRefund = prelimFiled ? Math.max(0, -Math.round(Number(prelimFiled.figures?.["30"]?.tax || 0))) : 0;
+  const defaultManual = useMemo<FormFigures>(() => { const m: FormFigures = {}; if (prelimRefund) m["23"] = { tax: prelimRefund }; return m; }, [prelimRefund]);
+  const computeForm = useMemo(() => (m: FormFigures) => computeVatForm(rows, m), [rows]);
+  const sources = useMemo(() => ({ entries: rows.map((x) => x.id) }), [rows]);
 
   const R = useMemo(() => {
     const by = (codes: string[]) => { const r = rows.filter((x) => codes.includes(String(x.vat_type || ""))); return { n: r.length, supply: r.reduce((s, x) => s + x.supply_amount, 0), vat: r.reduce((s, x) => s + x.vat_amount, 0) }; };
@@ -167,12 +185,6 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
 
   useEffect(() => { if (!exportRef) return; exportRef.current = exportXlsx; return () => { exportRef.current = null; }; });
 
-  const Line = ({ label, b, vatZero, minus }: { label: string; b: { n: number; supply: number; vat: number }; vatZero?: boolean; minus?: boolean }) => (
-    <tr className={minus ? "vr-minus" : undefined}><td className="text-left">{label}</td><td className="tr mono-number">{b.n}</td><td className="tr mono-number">{won(b.supply)}</td><td className="tr mono-number">{vatZero ? "—" : (minus ? "−" : "") + won(b.vat)}</td></tr>
-  );
-  const Sum = ({ label, n, supply, vat }: { label: string; n: number; supply: number; vat: number }) => (
-    <tr className="vr-sum"><td className="text-left">{label}</td><td className="tr mono-number">{n}</td><td className="tr mono-number">{won(supply)}</td><td className="tr mono-number">{won(vat)}</td></tr>
-  );
   const Table = ({ title, t }: { title: string; t: typeof R.saleTable }) => (
     <div className="pnl-panel">
       <h3>{title}</h3><p>세금계산서·계산서 유형만 · 거래처 {t.length}곳 · 공급가액 큰 순</p>
@@ -199,46 +211,23 @@ export function VatReturn({ companyId, year, period, exportRef }: { companyId: s
       <p className="inv-hint">{from} ~ {to}  확정 매입매출전표 기준 · 홈택스 원본이 아니라  <b>장부에 올린 것</b>만. 전표 없는 자료는 재무 › 전표 현황 › 처리할 것에서. 신고는 홈택스에서 사람이 합니다.{R.unknown ? <b className="vr-warn"> · 부가세 유형이 비어 있는 전표 {R.unknown}건은 어느 칸에도 못 들어갔습니다. 매입매출전표에서 유형을 채우세요.</b> : null}</p>
       {isLoading ? <div className="collect-empty">전표를 읽는 중…</div> : (
         <>
-          <div className="pnl-grid2">
-            <div className="pnl-panel">
-              <h3>과세표준 및 매출세액</h3><p>신고서 ①②③ 칸에 옮겨 적는 숫자</p>
-              <table className="ev-table ev-lined table-inv-status-sm">
-                <thead><tr><th>항목</th><th>건수</th><th>공급가액</th><th>세액</th></tr></thead>
-                <tbody>
-                  <Line label="① 세금계산서 발급분 (11)" b={R.s11} />
-                  <Line label="② 신용카드·현금영수증 발행분 (17·22)" b={R.s17} />
-                  <Line label="③ 영세율 (12)" b={R.s12} vatZero />
-                  <Line label="(참고) 면세매출 (13). 신고서 밖" b={R.s13} vatZero />
-                  <Sum label="매출세액 합계" n={R.s11.n + R.s17.n + R.s12.n} supply={R.s11.supply + R.s17.supply + R.s12.supply} vat={R.salesVat} />
-                </tbody>
-              </table>
-            </div>
-            <div className="pnl-panel">
-              <h3>매입세액</h3><p>신고서 ⑩⑭⑯ 칸 · 불공제는 공제 합계에서 빠집니다</p>
-              <table className="ev-table ev-lined table-inv-status-sm">
-                <thead><tr><th>항목</th><th>건수</th><th>공급가액</th><th>세액</th></tr></thead>
-                <tbody>
-                  <Line label="⑩ 세금계산서 수취분 (51)" b={R.p51} />
-                  <Line label="⑭ 기타 공제 · 카드·현금영수증 (57·61)" b={R.p57} />
-                  <Line label="⑯ 공제받지 못할 매입세액 (54)" b={R.p54} minus />
-                  <Line label="(참고) 면세매입 (53·58·59)" b={R.p53} vatZero />
-                  <Sum label="공제 매입세액 합계" n={R.p51.n + R.p57.n} supply={R.p51.supply + R.p57.supply} vat={R.deductible} />
-                  <tr className="vr-total"><td className="text-left"><b>{R.payable >= 0 ? "납부세액" : "환급세액"}</b> = 매출세액 − 공제매입세액</td><td></td><td></td><td className="tr mono-number"><b>{won(Math.abs(R.payable))}</b></td></tr>
-                  {/* 직전 기수 대비 — 같은 종류(예정↔확정·반기)끼리. 전표가 없는 기수는 비교하지 않는다 */}
-                  <tr className="vr-prev"><td colSpan={4} className="text-left">
-                    {(() => {
-                      if (!prevRows) return <span className="ev-dim">직전 기수 읽는 중…</span>;
-                      const label = `${prev.year}년 ${PP.label.replace(/\s\(.*\)$/, "")}`;
-                      if (prevRows.length === 0) return <span className="ev-dim">직전 기수({label})는 확정 전표가 없어 비교하지 않습니다</span>;
-                      const p = payableOf(prevRows), d = R.payable - p;
-                      const pct = p !== 0 ? Math.round((d / Math.abs(p)) * 100) : null;
-                      return <>직전 기수({label}) {p >= 0 ? "납부" : "환급"} <b className="mono-number">{won(Math.abs(p))}</b> 대비 <b className={`mono-number ${d > 0 ? "vr-warn" : ""}`}>{d > 0 ? "▲" : d < 0 ? "▼" : "="} {won(Math.abs(d))}{pct !== null ? ` (${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(pct)}%)` : ""}</b></>;
-                    })()}
-                  </td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          {/*   서식 화면이 예전 '옮겨 적을 숫자' 표 두 개(과세표준·매입세액)를 대신한다(결정 260 — 중복 금지) */}
+          <TaxReturnSheet layout="vat" kind="vat" companyId={companyId} userId={userId ?? null} canWrite={!!canWrite}
+            periodKey={vatPeriodKey(year, period)} title={`일반과세자 부가가치세 신고서 · ${year}년 ${P.label}`}
+            compute={computeForm} sources={sources} loading={isLoading}
+            defaultManual={defaultManual}
+            defaultManualNote={prelimRefund ? `㉓ 예정신고 미환급세액 ${won(prelimRefund)}은 ${year}년 ${prelimKey === "1p" ? "1기" : "2기"} 예정 신고본(마감한 숫자)에서 채웠습니다.` : undefined} />
+          {/* 직전 기수 대비 — 같은 종류(예정↔확정·반기)끼리. 전표가 없는 기수는 비교하지 않는다 */}
+          <p className="inv-hint">
+            {(() => {
+              if (!prevRows) return <span className="ev-dim">직전 기수 읽는 중…</span>;
+              const label = `${prev.year}년 ${PP.label.replace(/\s\(.*\)$/, "")}`;
+              if (prevRows.length === 0) return <span className="ev-dim">직전 기수({label})는 확정 전표가 없어 비교하지 않습니다</span>;
+              const p = payableOf(prevRows), d = R.payable - p;
+              const pct = p !== 0 ? Math.round((d / Math.abs(p)) * 100) : null;
+              return <>직전 기수({label}) {p >= 0 ? "납부" : "환급"} <b className="mono-number">{won(Math.abs(p))}</b> 대비 이번 기수 납부(환급)세액㉰ <b className={`mono-number ${d > 0 ? "vr-warn" : ""}`}>{d > 0 ? "▲" : d < 0 ? "▼" : "="} {won(Math.abs(d))}{pct !== null ? ` (${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(pct)}%)` : ""}</b></>;
+            })()}
+          </p>
           <div className="pnl-grid2">
             <Table title="매출처별 세금계산서 합계표" t={R.saleTable} />
             <Table title="매입처별 세금계산서 합계표" t={R.buyTable} />
