@@ -11602,3 +11602,18 @@ table.tir-items-table { min-width: 640px; }
 .rtf-drill-head span { @apply text-xs text-[var(--text-muted)]; }
 .rtf-drill-head button { @apply ml-auto; }
 .rtf-drill-body { @apply min-h-0 flex-1 overflow-auto; }
+/* 부가세 부속서류 B · 입력 팝업 (2026-10-12 세무 2차 3단계) */
+.rtf-extra { @apply mt-0.5 block text-[10px] text-[var(--primary)]; }
+.rtf-form { @apply flex w-full max-w-2xl flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-5 shadow-xl; max-height: 85vh; overflow-y: auto; }
+.rtf-form-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-2; }
+.rtf-form-field { @apply flex flex-col gap-1 text-xs text-[var(--text-muted)]; }
+.rtf-form-field i { @apply not-italic text-[var(--text-dim)]; }
+.rtf-form-check { @apply flex items-center gap-2 text-xs text-[var(--text-muted)] sm:col-span-2; }
+.rtf-form-actions { @apply flex justify-end gap-2 border-t border-[var(--border)] pt-3; }
+.rtf-add { @apply flex justify-end; }
+.rtf-row-actions { @apply whitespace-nowrap; }
+.rtf-row-actions button + button { @apply ml-1; }
+.rtf-rate-input { @apply mx-1 w-14 rounded border border-[var(--border)] bg-transparent px-1 text-right; }
+.rtf-cell-input { @apply w-full border-b border-dashed border-[var(--border)] bg-transparent px-1 text-xs outline-none focus:border-[var(--primary)] disabled:opacity-50; }
+.rtf-claim-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-3; }
+.rtf-claim-reason { @apply sm:col-span-3; }

@@ -35,6 +35,8 @@ type Props = {
   sources: Record<string, string[]>;
   /** 부속서류 숫자 — 마감 때 신고본에 같이 남긴다(2단계) */
   schedules?: Record<string, unknown>;
+  /** 지금 계산(사람 칸 포함)을 바깥에 알린다 — 경정청구서가 같은 숫자를 쓴다(3단계) */
+  onFigures?: (f: FormFigures) => void;
   /** 신고본이 없을 때 사람 칸 기본값(예: ㉓ 예정신고 미환급세액) · 출처 한 줄 */
   defaultManual?: FormFigures;
   defaultManualNote?: string;
@@ -66,6 +68,9 @@ export function TaxReturnSheet(p: Props) {
   }, [listLoading, filed, p.periodKey, p.defaultManual]);
 
   const current = useMemo(() => p.compute(manual), [p, manual]);
+  const onFigures = p.onFigures;
+  const lastSent = useRef("");
+  useEffect(() => { const k = JSON.stringify(current); if (k !== lastSent.current) { lastSent.current = k; onFigures?.(current); } }, [current, onFigures]);
   const changed = useMemo(() => (filed ? diffFigures(filed.figures, current) : []), [filed, current]);
   const srcDiff = useMemo(() => {
     if (!filed) return { added: 0, removed: 0 };
@@ -129,10 +134,17 @@ export function TaxReturnSheet(p: Props) {
     const diff = Math.round(Number(before || 0)) !== Math.round(Number(now || 0));
     return <span className={diff ? "rtf-chg" : undefined}><span className="rtf-orig">{won(before)}</span><span className="rtf-rev">{won(now)}</span></span>;
   };
-  const manualCell = (no: string, f: "amount" | "tax") => (
-    <CurrencyInput className="rtf-input" value={String(manual[no]?.[f] ?? "")} placeholder="0"
-      onValueChange={(raw) => setManual((m) => ({ ...m, [no]: { ...m[no], [f]: raw === "" ? 0 : Number(raw) } }))} />
-  );
+  //   사람 칸에 부속서류 몫이 더해지면(④ 간주임대료·⑧ 대손세액) 입력칸 아래에 '부속서류 +N = 합계'를 적는다 (3단계)
+  const manualCell = (no: string, f: "amount" | "tax") => {
+    const extra = Math.round(Number(current[no]?.[f] || 0)) - Math.round(Number(manual[no]?.[f] || 0));
+    return (
+      <>
+        <CurrencyInput className="rtf-input" value={String(manual[no]?.[f] ?? "")} placeholder="0"
+          onValueChange={(raw) => setManual((m) => ({ ...m, [no]: { ...m[no], [f]: raw === "" ? 0 : Number(raw) } }))} />
+        {extra !== 0 && <span className="rtf-extra">부속서류 {extra > 0 ? "+" : "−"}{won(Math.abs(extra))} = {won(current[no]?.[f])}</span>}
+      </>
+    );
+  };
   //   사람 칸은 비교 보기에서도 '수정' 줄 자리에서 고친다 — 당초는 위 줄에 남는다
   const numCell = (no: string, f: "amount" | "tax", kind: string) => {
     if (kind !== "manual" || !p.canWrite) return cellVal(no, f);

@@ -18041,6 +18041,54 @@ export type Database = {
           },
         ]
       }
+      tax_schedule_inputs: {
+        Row: {
+          company_id: string
+          created_at: string
+          data: Json
+          doc: string
+          id: string
+          period_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          data?: Json
+          doc: string
+          id?: string
+          period_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          data?: Json
+          doc?: string
+          id?: string
+          period_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tax_schedule_inputs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tax_schedule_inputs_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       toss_billing_keys: {
         Row: {
           billing_key_enc: string | null

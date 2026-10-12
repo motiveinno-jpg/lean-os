@@ -14,7 +14,7 @@
 //   결정 64 — 자동으로 못 푸는 것: 신고서 제출. 여기서는 옮겨 적을 숫자와 엑셀까지만 — 신고는 홈택스에서 사람이.
 
 import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
@@ -24,6 +24,9 @@ import { Stat } from "@/components/query-kit";
 import { useToast } from "@/components/toast";
 import { TaxReturnSheet } from "@/components/tax-return-sheet";
 import { computeVatForm, type FormFigures } from "@/lib/tax-forms/vat-form";
+import { getScheduleInputs } from "@/lib/tax-schedule-inputs";
+import { leaseSummary, deemedSummary, baddebtSummary, vatExtrasOf } from "@/lib/tax-forms/vat-schedules-input";
+import { VatInputSchedules } from "./VatInputSchedules";
 import { listTaxReturns, latestClosed, vatPeriodKey } from "@/lib/tax-returns";
 import { Pager, usePager } from "@/components/query-kit";
 import { useModalKeys } from "@/hooks/use-modal-keys";
@@ -54,6 +57,11 @@ export const VAT_DOCS = [
   { key: "cardOut", label: "신용카드매출전표등 발행금액집계표" },
   { key: "nonDed", label: "공제받지 못할 매입세액명세서" },
   { key: "asset", label: "건물등 감가상각자산 취득명세서" },
+  //   3단계 — 사람이 넣는 서류
+  { key: "lease", label: "부동산임대공급가액명세서" },
+  { key: "deemed", label: "의제매입세액공제신고서" },
+  { key: "baddebt", label: "대손세액공제신고서" },
+  { key: "refundClaim", label: "과표 및 세액경정청구서" },
 ] as const;
 export type VatDocKey = (typeof VAT_DOCS)[number]["key"];
 
@@ -158,7 +166,19 @@ export function VatReturn({ companyId, userId, canWrite, year, period, doc = "re
   const prelimFiled = latestClosed(prelimReturns);
   const prelimRefund = prelimFiled ? Math.max(0, -Math.round(Number(prelimFiled.figures?.["30"]?.tax || 0))) : 0;
   const defaultManual = useMemo<FormFigures>(() => { const m: FormFigures = {}; if (prelimRefund) m["23"] = { tax: prelimRefund }; return m; }, [prelimRefund]);
-  const computeForm = useMemo(() => (m: FormFigures) => computeVatForm(rows, m), [rows]);
+  //   3단계 — 사람이 넣은 부속서류(부동산임대·의제매입·대손·경정청구) → 신고서 ④·⑧·⑮ 에 더해진다
+  const qcV = useQueryClient();
+  const { data: inputs = {} } = useQuery({
+    queryKey: ["tax-schedule-inputs", companyId, vatPeriodKey(year, period)],
+    enabled: !!companyId,
+    queryFn: () => getScheduleInputs(companyId!, vatPeriodKey(year, period)),
+  });
+  const LS = useMemo(() => leaseSummary(inputs.lease, from, to), [inputs.lease, from, to]);
+  const DS = useMemo(() => deemedSummary(inputs.deemed, rows.filter((x) => x.vat_type === "53" || x.vat_type === "58")), [inputs.deemed, rows]);
+  const BS = useMemo(() => baddebtSummary(inputs.baddebt), [inputs.baddebt]);
+  const extras = useMemo(() => vatExtrasOf(LS, DS, BS), [LS, DS, BS]);
+  const computeForm = useMemo(() => (m: FormFigures) => computeVatForm(rows, m, extras), [rows, extras]);
+  const [liveFigures, setLiveFigures] = useState<FormFigures>({});
   const sources = useMemo(() => ({ entries: rows.map((x) => x.id) }), [rows]);
 
   const R = useMemo(() => {
@@ -194,7 +214,13 @@ export function VatReturn({ companyId, userId, canWrite, year, period, doc = "re
     setReasons(((filedNow?.schedules as any)?.nonDeductible?.reasons || {}) as Record<string, string>);
   }, [year, period, filedNow]);
   const ND = useMemo(() => nonDeductible(rows, reasons), [rows, reasons]);
-  const schedules = useMemo(() => scheduleSnapshot(rows, reasons), [rows, reasons]);
+  const schedules = useMemo(() => ({
+    ...scheduleSnapshot(rows, reasons),
+    lease: { input: inputs.lease || null, deemed: LS.deemed, rent: LS.rent, maint: LS.maint, total: LS.total },
+    deemed: { input: inputs.deemed || null, amount: DS.amount, tax: DS.tax, groups: DS.groups },
+    baddebt: { input: inputs.baddebt || null, deductedTax: BS.deductedTax, recoveredTax: BS.recoveredTax, line8: BS.line8 },
+    refundClaim: inputs.refund_claim || null,
+  }), [rows, reasons, inputs, LS, DS, BS]);
 
   //   건별 상세 팝업 — 합계표 거래처 줄·카드 줄·감가상각 분류 줄을 누르면 그 전표들
   const [drill, setDrill] = useState<{ title: string; ids: string[] } | null>(null);
@@ -391,7 +417,7 @@ export function VatReturn({ companyId, userId, canWrite, year, period, doc = "re
             {/*   서식 화면이 예전 '옮겨 적을 숫자' 표 두 개(과세표준·매입세액)를 대신한다(결정 260 — 중복 금지) */}
             <TaxReturnSheet layout="vat" kind="vat" companyId={companyId} userId={userId ?? null} canWrite={!!canWrite}
               periodKey={vatPeriodKey(year, period)} title={`일반과세자 부가가치세 신고서 · ${year}년 ${P.label}`}
-              compute={computeForm} sources={sources} loading={isLoading} schedules={schedules}
+              compute={computeForm} sources={sources} loading={isLoading} schedules={schedules} onFigures={setLiveFigures}
               defaultManual={defaultManual}
               defaultManualNote={prelimRefund ? `㉓ 예정신고 미환급세액 ${won(prelimRefund)}은 ${year}년 ${prelimKey === "1p" ? "1기" : "2기"} 예정 신고본(마감한 숫자)에서 채웠습니다.` : undefined} />
             {/* 직전 기수 대비 — 같은 종류(예정↔확정·반기)끼리. 전표가 없는 기수는 비교하지 않는다 */}
@@ -409,7 +435,11 @@ export function VatReturn({ companyId, userId, canWrite, year, period, doc = "re
           {doc !== "return" && (
             <div className="rtf-wrap">
               <div className="rtf-close"><span className="rtf-close-state"><b>{docLabel}</b> · {year}년 {P.label}{filedNow ? " · 신고서를 마감하면 이 숫자도 신고본에 같이 남습니다" : ""}</span></div>
-              {docView()}
+              {doc === "lease" || doc === "deemed" || doc === "baddebt" || doc === "refundClaim"
+                ? <VatInputSchedules doc={doc} companyId={companyId} periodKey={vatPeriodKey(year, period)} from={from} to={to} canWrite={!!canWrite}
+                    rows={rows} inputs={inputs} onSaved={() => qcV.invalidateQueries({ queryKey: ["tax-schedule-inputs", companyId, vatPeriodKey(year, period)] })}
+                    filed={filedNow ? { figures: filedNow.figures, revision: filedNow.revision, closed_at: filedNow.closed_at } : null} current={liveFigures} />
+                : docView()}
               {detail.length > 0 && <Pager page={pager.page} pages={pager.pages} total={detail.length} size={50} from={pager.from} to={pager.to} onPage={pager.setPage} />}
             </div>
           )}

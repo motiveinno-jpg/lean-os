@@ -22,18 +22,18 @@ export const VAT_LINES: VatLine[] = [
   { no: "1", group: "sale", sub: "과세", label: "세금계산서 발급분", rate: "10/100", fields: ["amount", "tax"], kind: "auto", hint: "유형 11" },
   { no: "2", group: "sale", sub: "과세", label: "매입자발행 세금계산서", rate: "10/100", fields: ["amount", "tax"], kind: "manual" },
   { no: "3", group: "sale", sub: "과세", label: "신용카드·현금영수증 발행분", rate: "10/100", fields: ["amount", "tax"], kind: "auto", hint: "유형 17·22" },
-  { no: "4", group: "sale", sub: "과세", label: "기타(정규영수증 외 매출분)", rate: "10/100", fields: ["amount", "tax"], kind: "manual" },
+  { no: "4", group: "sale", sub: "과세", label: "기타(정규영수증 외 매출분)", rate: "10/100", fields: ["amount", "tax"], kind: "manual", hint: "부동산임대 간주임대료는 자동으로 더해짐" },
   { no: "5", group: "sale", sub: "영세", label: "세금계산서 발급분", rate: "0/100", fields: ["amount"], kind: "auto", hint: "유형 12" },
   { no: "6", group: "sale", sub: "영세", label: "기타", rate: "0/100", fields: ["amount"], kind: "manual" },
   { no: "7", group: "sale", label: "예정신고 누락분", fields: ["amount", "tax"], kind: "manual" },
-  { no: "8", group: "sale", label: "대손세액 가감", fields: ["tax"], kind: "manual" },
+  { no: "8", group: "sale", label: "대손세액 가감", fields: ["tax"], kind: "manual", hint: "대손세액공제신고서 몫은 자동으로 더해짐" },
   { no: "9", group: "sale", label: "합계", rate: "㉮", fields: ["amount", "tax"], kind: "sum" },
   { no: "10", group: "buy", sub: "세금계산서 수취분", label: "일반매입", fields: ["amount", "tax"], kind: "auto", hint: "유형 51·54 − ⑫" },
   { no: "11", group: "buy", sub: "세금계산서 수취분", label: "수출기업 수입분 납부유예", fields: ["amount", "tax"], kind: "manual" },
   { no: "12", group: "buy", sub: "세금계산서 수취분", label: "고정자산 매입", fields: ["amount", "tax"], kind: "auto", hint: "유형 51 · 고정자산 계정" },
   { no: "13", group: "buy", label: "예정신고 누락분", fields: ["amount", "tax"], kind: "manual" },
   { no: "14", group: "buy", label: "매입자발행 세금계산서", fields: ["amount", "tax"], kind: "manual" },
-  { no: "15", group: "buy", label: "그 밖의 공제매입세액", fields: ["amount", "tax"], kind: "auto", hint: "유형 57·61" },
+  { no: "15", group: "buy", label: "그 밖의 공제매입세액", fields: ["amount", "tax"], kind: "auto", hint: "유형 57·61 + 의제매입세액" },
   { no: "16", group: "buy", label: "합계 (10)−(11)+(12)+(13)+(14)+(15)", fields: ["amount", "tax"], kind: "sum" },
   { no: "17", group: "buy", label: "공제받지 못할 매입세액", fields: ["amount", "tax"], kind: "auto", hint: "유형 54" },
   { no: "18", group: "buy", label: "차감계 (16)−(17)", rate: "㉯", fields: ["amount", "tax"], kind: "sum" },
@@ -56,7 +56,9 @@ const r0 = (n: unknown) => Math.round(Number(n || 0));
 const mv = (m: FormFigures, no: string, f: "amount" | "tax") => r0(m?.[no]?.[f]);
 
 /** 전표 + 사람이 넣은 칸 → 신고서 전 칸. 금액·세액은 원 단위 정수 */
-export function computeVatForm(rows: VatFormRow[], manual: FormFigures = {}): FormFigures {
+/** extras — 부속서류에서 오는 몫(3단계): ④ 간주임대료 · ⑧ 대손세액(공제 −, 회수 +) · ⑮ 의제매입세액. 사람 칸 값에 더한다 */
+export type FormExtras = { l4?: { amount: number; tax: number }; l8tax?: number; l15?: { amount: number; tax: number } };
+export function computeVatForm(rows: VatFormRow[], manual: FormFigures = {}, extras: FormExtras = {}): FormFigures {
   const by = (codes: string[]) => {
     const r = rows.filter((x) => codes.includes(String(x.vat_type || "")));
     return { amount: r.reduce((s, x) => s + r0(x.supply_amount), 0), tax: r.reduce((s, x) => s + r0(x.vat_amount), 0) };
@@ -69,6 +71,8 @@ export function computeVatForm(rows: VatFormRow[], manual: FormFigures = {}): Fo
     if (l.fields.includes("tax")) c.tax = mv(manual, l.no, "tax");
     F[l.no] = c;
   }
+  if (extras.l4) F["4"] = { amount: r0(F["4"]?.amount) + r0(extras.l4.amount), tax: r0(F["4"]?.tax) + r0(extras.l4.tax) };
+  if (extras.l8tax) F["8"] = { tax: r0(F["8"]?.tax) + r0(extras.l8tax) };
   F["1"] = by(["11"]);
   F["3"] = by(["17", "22"]);
   F["5"] = { amount: by(["12"]).amount };
@@ -84,6 +88,7 @@ export function computeVatForm(rows: VatFormRow[], manual: FormFigures = {}): Fo
   const ti = by(["51", "54"]);
   F["10"] = { amount: ti.amount - r0(F["12"]?.amount), tax: ti.tax - r0(F["12"]?.tax) };
   F["15"] = by(["57", "61"]);
+  if (extras.l15) F["15"] = { amount: r0(F["15"].amount) + r0(extras.l15.amount), tax: r0(F["15"].tax) + r0(extras.l15.tax) };
   const plus = ["10", "12", "13", "14", "15"];
   F["16"] = {
     amount: plus.reduce((s, k) => s + r0(F[k]?.amount), 0) - r0(F["11"]?.amount),
