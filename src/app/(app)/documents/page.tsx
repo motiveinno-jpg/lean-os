@@ -277,7 +277,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
       } else if (cj.sections && Array.isArray(cj.sections)) {
         setEditContent(cj.sections.map((s: any) => `## ${s.title || ""}\n${s.content || ""}`).join("\n\n"));
       } else {
-        setEditContent(JSON.stringify(cj, null, 2));
+        //   본문이 없는 문서(내용 비움·견적만 있는 문서) — 예전엔 내부 JSON(`{}`)을 본문 자리에 그대로 보여 주고,
+        //   그 상태로 저장하면 그 글자가 본문으로 들어갔다. 빈 본문으로 둔다 → 화면엔 '(내용 없음)'. 다른 칸은 저장 때 그대로 남는다. (2026-10-12)
+        setEditContent("");
       }
       // Sync items & paymentSchedule
       if (Array.isArray(cj.items) && cj.items.length > 0) {
