@@ -42,7 +42,7 @@ import { CurrencyInput } from "@/components/currency-input";
 import { useToast } from "@/components/toast";
 import { useConfirm } from "@/components/confirm-dialog";
 
-type Tab = "income" | "expense" | "register";
+type Tab = "income" | "expense";
 /** 검색조건 (조회 화면 표준, 2026-08-18 Wave 1). ★ '조회'를 눌러야 반영. 기간·빠른검색은 즉시. */
 type Cond = { status: string[]; purpose: string[]; partner: string[]; min: string; max: string; rows: number };
 const EMPTY_COND: Cond = { status: [], purpose: [], partner: [], min: "", max: "", rows: 50 };
@@ -73,6 +73,7 @@ export default function CashReceiptsPage() {
   const [tab, setTab] = useState<Tab>("income");
   const [form, setForm] = useState(INITIAL_FORM);
   const [saving, setSaving] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [partnerSearch, setPartnerSearch] = useState("");
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
@@ -180,11 +181,11 @@ export default function CashReceiptsPage() {
     queryKey: ["cash-receipts", companyId, tab, startDate, endDate],
     queryFn: () =>
       getCashReceipts(companyId!, {
-        type: tab === "register" ? undefined : tab,
+        type: tab,
         startDate,
         endDate,
       }),
-    enabled: !!companyId && tab !== "register",
+    enabled: !!companyId,
   });
 
   // 승인번호 자동 채움 (2026-07-30 대표 — 홈택스엔 올라갔는데 앱엔 승인번호가 비던 건):
@@ -518,6 +519,8 @@ export default function CashReceiptsPage() {
       });
       toast("현금영수증이 등록되었습니다", "success");
       setForm({ ...INITIAL_FORM, type: form.type });
+      setShowRegister(false);
+      setTab(form.type);
       queryClient.invalidateQueries({ queryKey: ["cash-receipts"] });
       queryClient.invalidateQueries({ queryKey: ["cash-receipt-summary"] });
     } catch (err: any) {
@@ -589,7 +592,7 @@ export default function CashReceiptsPage() {
       <QueryScreen>
         <QueryHead>
           <div className="collect-tabs no-print">
-            {([["income", "매출 (발행)", summary?.incomeCount], ["expense", "매입 (수취)", summary?.expenseCount], ["register", "수동 등록", undefined]] as [Tab, string, number | undefined][]).map(([t, label, n]) => (
+            {([["income", "매출 (발행)", summary?.incomeCount], ["expense", "매입 (수취)", summary?.expenseCount]] as [Tab, string, number | undefined][]).map(([t, label, n]) => (
               <button key={t} type="button" onClick={() => setTab(t)}
                 className={tab === t ? "collect-tab collect-tab-on" : "collect-tab"}>
                 {label}{n != null && <span className="collect-tab-cnt">{n.toLocaleString()}</span>}
@@ -623,6 +626,11 @@ export default function CashReceiptsPage() {
                   <input type="file" accept=".xlsx,.xls,.csv" className="hidden"
                     onChange={(e) => { close(); handleExcelUpload(e); }} disabled={uploading} />
                 </label>
+                <ToolbarPopoverItem
+                  onClick={() => { close(); setForm({ ...INITIAL_FORM, type: tab }); setShowRegister(true); }}
+                  hint="홈택스에 없는 건을 한 장씩 적어 넣습니다.">
+                  직접 입력
+                </ToolbarPopoverItem>
                 {activeJobId && (
                   <>
                     <div className="toolbar-pop-sep" />
@@ -732,190 +740,7 @@ export default function CashReceiptsPage() {
         </QueryHead>
 
         <QueryBody>
-        {/* Register tab */}
-        {tab === "register" && (
-          <div className="cash-receipt-register-form">
-            {/*   2026-10-01 UI 점검 9순위: 직접 칠한 매출/매입 토글 → 칩, 칸마다 다른 입력 모양 → field-input, w-full 등록 버튼 → 오른쪽 btn-sm */}
-            <div className="cash-receipt-register-head">
-              <h2 className="text-sm font-bold text-[var(--text)]">현금영수증 수동 등록</h2>
-              <span className="cash-receipt-type-chips">
-                {(["expense", "income"] as const).map((t) => (
-                  <button key={t} type="button" onClick={() => setForm((f) => ({ ...f, type: t }))}
-                    className={form.type === t ? "qk-quick qk-quick-on" : "qk-quick"}>
-                    {t === "income" ? "매출 (발행)" : "매입 (수취)"}
-                  </button>
-                ))}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  발행일 *
-                </label>
-                <DateField
-                  value={form.issueDate}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, issueDate: e.target.value }))
-                  }
-                  className="field-input"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  합계금액 (VAT포함) *
-                </label>
-                <CurrencyInput
-                  value={form.amount}
-                  onValueChange={(raw) => {
-                    setForm((f) => ({ ...f, amount: raw }));
-                  }}
-                  placeholder="110,000"
-                  className="field-input text-right mono-number"
-                />
-                {form.amount && Number(form.amount) > 0 && (
-                  <div className="text-[10px] text-[var(--text-dim)] mt-1">
-                    공급가액: ₩
-                    {Math.round(
-                      Number(form.amount) / 1.1,
-                    ).toLocaleString()}{" "}
-                    / 세액: ₩
-                    {(
-                      Number(form.amount) -
-                      Math.round(Number(form.amount) / 1.1)
-                    ).toLocaleString()}
-                  </div>
-                )}
-              </div>
-              <div className="relative">
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  거래처명
-                </label>
-                <input
-                  value={form.counterpartyName}
-                  onChange={(e) => {
-                    setForm((f) => ({ ...f, counterpartyName: e.target.value }));
-                    setPartnerSearch(e.target.value);
-                    setShowPartnerDropdown(e.target.value.length > 0);
-                  }}
-                  onFocus={() => form.counterpartyName && setShowPartnerDropdown(true)}
-                  onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
-                  placeholder="거래처명 검색"
-                  className="field-input"
-                />
-                {showPartnerDropdown && filteredPartners.length > 0 && (
-                  <div className="absolute z-20 w-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-lg max-h-40 overflow-y-auto">
-                    {filteredPartners.slice(0, 8).map((p: any) => (
-                      <button key={p.id} type="button"
-                        onClick={() => {
-                          setForm((f) => ({ ...f, counterpartyName: p.name, counterpartyBizno: p.business_number || "" }));
-                          setShowPartnerDropdown(false);
-                        }}
-                        className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition">
-                        <span className="font-medium">{p.name}</span>
-                        {p.business_number && <span className="text-xs text-[var(--text-dim)] ml-2">{p.business_number}</span>}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  사업자번호
-                </label>
-                <input
-                  value={form.counterpartyBizno}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      counterpartyBizno: e.target.value,
-                    }))
-                  }
-                  placeholder="000-00-00000"
-                  className="field-input"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  승인번호
-                </label>
-                <input
-                  value={form.approvalNumber}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, approvalNumber: e.target.value }))
-                  }
-                  placeholder="승인번호"
-                  className="field-input"
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  용도 *
-                </label>
-                <select
-                  value={form.purpose}
-                  onChange={(e) => {
-                    const purpose = e.target.value as any;
-                    setForm((f) => ({
-                      ...f,
-                      purpose,
-                      identityType: purpose === "income_deduction" ? "phone" : "bizno",
-                      identityNumber: "",
-                    }));
-                  }}
-                  className="field-input"
-                >
-                  <option value="expenditure_proof">지출증빙</option>
-                  <option value="income_deduction">소득공제</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  {form.purpose === "income_deduction" ? "전화번호" : "사업자등록번호"}
-                </label>
-                <input
-                  value={form.identityNumber}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      identityNumber: e.target.value,
-                    }))
-                  }
-                  placeholder={form.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
-                  className="field-input"
-                />
-                <div className="text-[10px] text-[var(--text-dim)] mt-1">
-                  {form.purpose === "income_deduction"
-                    ? "소비자 전화번호를 입력합니다."
-                    : "거래처 사업자등록번호를 입력합니다."}
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs text-[var(--text-muted)] mb-1">
-                  메모
-                </label>
-                <input
-                  value={form.memo}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, memo: e.target.value }))
-                  }
-                  placeholder="비고"
-                  className="field-input"
-                />
-              </div>
-            </div>
-
-            <div className="cash-receipt-register-foot">
-              <button type="button" onClick={handleSave} disabled={saving || !companyId} className="btn-primary btn-sm">
-                {saving ? "저장 중..." : "현금영수증 등록"}
-              </button>
-            </div>
-          </div>
-        )}
-
-
-        {tab !== "register" && (
-          isLoading ? (
+        {isLoading ? (
             <div className="collect-empty">불러오는 중…</div>
           ) : (receipts as any[]).length === 0 ? (
             <div className="collect-empty">
@@ -1068,8 +893,7 @@ export default function CashReceiptsPage() {
                 </tfoot>
               </table>
             </div>
-          )
-        )}
+          )}
         </QueryBody>
 
         <Pager page={pager.page} pages={pager.pages} total={displayReceipts.length} size={live.rows}
@@ -1157,6 +981,192 @@ export default function CashReceiptsPage() {
               <button onClick={handleNtsIssue} disabled={issuing} className="btn-primary text-xs">
                 {issuing ? "발행 중..." : "국세청 발행"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수동 등록 팝업 — 2026-10-12 UI 점검 9순위 남은 것: 탭 자리에 펼친 폼 → 팝업(폼은 팝업, 목록 줄이 밀리지 않게) */}
+      {showRegister && (
+        <div className="cash-receipt-issue-modal">
+          <div className="cash-receipt-register-dialog">
+            <div className="cash-receipt-register-form">
+                {/*   2026-10-01 UI 점검 9순위: 직접 칠한 매출/매입 토글 → 칩, 칸마다 다른 입력 모양 → field-input, w-full 등록 버튼 → 오른쪽 btn-sm */}
+                <div className="cash-receipt-register-head">
+                  <h2 className="text-sm font-bold text-[var(--text)]">현금영수증 수동 등록</h2>
+                  <span className="cash-receipt-type-chips">
+                    {(["expense", "income"] as const).map((t) => (
+                      <button key={t} type="button" onClick={() => setForm((f) => ({ ...f, type: t }))}
+                        className={form.type === t ? "qk-quick qk-quick-on" : "qk-quick"}>
+                        {t === "income" ? "매출 (발행)" : "매입 (수취)"}
+                      </button>
+                    ))}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      발행일 *
+                    </label>
+                    <DateField
+                      value={form.issueDate}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, issueDate: e.target.value }))
+                      }
+                      className="field-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      합계금액 (VAT포함) *
+                    </label>
+                    <CurrencyInput
+                      value={form.amount}
+                      onValueChange={(raw) => {
+                        setForm((f) => ({ ...f, amount: raw }));
+                      }}
+                      placeholder="110,000"
+                      className="field-input text-right mono-number"
+                    />
+                    {form.amount && Number(form.amount) > 0 && (
+                      <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                        공급가액: ₩
+                        {Math.round(
+                          Number(form.amount) / 1.1,
+                        ).toLocaleString()}{" "}
+                        / 세액: ₩
+                        {(
+                          Number(form.amount) -
+                          Math.round(Number(form.amount) / 1.1)
+                        ).toLocaleString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      거래처명
+                    </label>
+                    <input
+                      value={form.counterpartyName}
+                      onChange={(e) => {
+                        setForm((f) => ({ ...f, counterpartyName: e.target.value }));
+                        setPartnerSearch(e.target.value);
+                        setShowPartnerDropdown(e.target.value.length > 0);
+                      }}
+                      onFocus={() => form.counterpartyName && setShowPartnerDropdown(true)}
+                      onBlur={() => setTimeout(() => setShowPartnerDropdown(false), 200)}
+                      placeholder="거래처명 검색"
+                      className="field-input"
+                    />
+                    {showPartnerDropdown && filteredPartners.length > 0 && (
+                      <div className="absolute z-20 w-full mt-1 bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl shadow-lg max-h-40 overflow-y-auto">
+                        {filteredPartners.slice(0, 8).map((p: any) => (
+                          <button key={p.id} type="button"
+                            onClick={() => {
+                              setForm((f) => ({ ...f, counterpartyName: p.name, counterpartyBizno: p.business_number || "" }));
+                              setShowPartnerDropdown(false);
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-[var(--bg-surface)] text-sm transition">
+                            <span className="font-medium">{p.name}</span>
+                            {p.business_number && <span className="text-xs text-[var(--text-dim)] ml-2">{p.business_number}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      사업자번호
+                    </label>
+                    <input
+                      value={form.counterpartyBizno}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          counterpartyBizno: e.target.value,
+                        }))
+                      }
+                      placeholder="000-00-00000"
+                      className="field-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      승인번호
+                    </label>
+                    <input
+                      value={form.approvalNumber}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, approvalNumber: e.target.value }))
+                      }
+                      placeholder="승인번호"
+                      className="field-input"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      용도 *
+                    </label>
+                    <select
+                      value={form.purpose}
+                      onChange={(e) => {
+                        const purpose = e.target.value as any;
+                        setForm((f) => ({
+                          ...f,
+                          purpose,
+                          identityType: purpose === "income_deduction" ? "phone" : "bizno",
+                          identityNumber: "",
+                        }));
+                      }}
+                      className="field-input"
+                    >
+                      <option value="expenditure_proof">지출증빙</option>
+                      <option value="income_deduction">소득공제</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      {form.purpose === "income_deduction" ? "전화번호" : "사업자등록번호"}
+                    </label>
+                    <input
+                      value={form.identityNumber}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          identityNumber: e.target.value,
+                        }))
+                      }
+                      placeholder={form.purpose === "income_deduction" ? "010-0000-0000" : "000-00-00000"}
+                      className="field-input"
+                    />
+                    <div className="text-[10px] text-[var(--text-dim)] mt-1">
+                      {form.purpose === "income_deduction"
+                        ? "소비자 전화번호를 입력합니다."
+                        : "거래처 사업자등록번호를 입력합니다."}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[var(--text-muted)] mb-1">
+                      메모
+                    </label>
+                    <input
+                      value={form.memo}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, memo: e.target.value }))
+                      }
+                      placeholder="비고"
+                      className="field-input"
+                    />
+                  </div>
+                </div>
+
+                <div className="cash-receipt-register-actions">
+                  <button type="button" onClick={() => setShowRegister(false)} disabled={saving} className="btn-secondary btn-sm">닫기</button>
+                  <button type="button" onClick={handleSave} disabled={saving || !companyId} className="btn-primary btn-sm">
+                    {saving ? "저장 중..." : "현금영수증 등록"}
+                  </button>
+                </div>
             </div>
           </div>
         </div>

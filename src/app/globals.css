@@ -1442,7 +1442,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .cash-receipt-register-form { @apply p-6 space-y-4; }
 .cash-receipt-register-head { @apply flex flex-wrap items-center gap-3; }
 .cash-receipt-type-chips { @apply inline-flex flex-wrap gap-1.5; }
-.cash-receipt-register-foot { @apply flex justify-end border-t border-[var(--border)] pt-3; }
+.cash-receipt-register-dialog { @apply bg-[var(--bg-card)] border border-[var(--border)] rounded-2xl w-full max-w-xl shadow-xl max-h-[90vh] overflow-y-auto; }
+.cash-receipt-register-actions { @apply flex justify-end gap-2 border-t border-[var(--border)] pt-3; }
 .cash-receipt-row { @apply border-b border-[var(--border)]/50 hover:bg-[var(--bg-surface)]/60 transition; }
 .cash-receipt-issue-modal { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4; }
 /* 결정 1(2026-10-06): 현금영수증 결과 줄 '전표 안 된 건' → 수집·전표 */
