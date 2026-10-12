@@ -240,8 +240,37 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     enabled: !!(doc as any)?.deal_id,
   });
 
+  //   고친 내용이 있나 (2026-10-12) — 발송·공유 링크는 화면 값이 아니라 '저장된' 문서로 나간다.
+  //   그래서 안 저장한 내용이 있으면 ①저장 버튼을 파랗게(발송은 회색) ②보내기 전에 저장할지 묻는다.
+  //   기준 = 저장하면 문서에 들어갈 값(본문 글자·품목·견적 정보·결제조건). 태그·공백·빈 칸 차이는 같은 것으로 본다.
+  const plainBody = (h: string) => (h || "")
+    .replace(/<span[^>]*data-doc-var[^>]*>([\s\S]*?)<\/span>/gi, "$1")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/\s+/g, "");
+  const filledPairs = (o: any) => Object.keys(o || {}).sort()
+    .filter((k) => !["id", "_id", "key", "uid"].includes(k))
+    .map((k) => [k, o[k] == null ? "" : String(o[k])])
+    .filter(([, v]) => v !== "" && v !== "0");
+  const snapNow = JSON.stringify([
+    plainBody(editContent),
+    editItems.map(filledPairs).filter((p) => p.length),
+    filledPairs(quoteHeader),
+    editPaymentSchedule.map(filledPairs).filter((p) => p.length),
+  ]);
+  const [savedSnap, setSavedSnap] = useState<string | null>(null);
+  const [snapTick, setSnapTick] = useState(0);
+  const snapPending = useRef(false);
+  //   문서를 (다시) 불러와 칸을 채운 다음 그림에서 기준을 잡는다 — 아래 채우기 effect 보다 먼저 선언해야 채우기 전 값을 잡지 않는다
+  useEffect(() => {
+    if (snapPending.current) { snapPending.current = false; setSavedSnap(snapNow); }
+  }, [snapNow, snapTick]);
+  const isDirty = savedSnap !== null && snapNow !== savedSnap;
+
   useEffect(() => {
     if (doc?.content_json) {
+      snapPending.current = true;
+      setSnapTick((t) => t + 1);
       const cj = doc.content_json as any;
       if (cj.body) {
         setEditContent(cj.body);
@@ -292,6 +321,13 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
     onSuccess: () => { invalidate(); setComment(""); },
     onError: (err: any) => toast(`저장 실패: ${err.message || err}`, "error"),
   });
+
+  //   보내기 전 확인 — 안 저장한 내용이 있으면 저장하고 진행할지 묻는다. 취소하면 보내지 않는다.
+  const confirmUnsaved = async () => {
+    if (!isDirty) return true;
+    if (!(await appConfirm("고친 내용이 아직 저장되지 않았습니다.\n상대에게는 저장된 내용만 나갑니다. 저장하고 진행할까요?"))) return false;
+    try { await saveMut.mutateAsync(); return true; } catch { return false; }
+  };
 
   const [savedModal, setSavedModal] = useState(false);
   const [issuing, setIssuing] = useState(false);
@@ -721,8 +757,9 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
               문서번호 발급
             </button>
           )}
-          <button onClick={() => sendToPartnerMut.mutate()} disabled={sendToPartnerMut.isPending}
-            className="btn-primary btn-sm"
+          {/* 파란 버튼은 하나 — 고친 내용이 있으면 아래 「저장」이, 저장된 상태면 「거래처에게 발송」이 파랗다 (2026-10-12) */}
+          <button onClick={async () => { if (await confirmUnsaved()) sendToPartnerMut.mutate(); }} disabled={sendToPartnerMut.isPending || saveMut.isPending}
+            className={isDirty ? "btn-secondary btn-sm" : "btn-primary btn-sm"}
             title="거래처에 서명 링크를 이메일로 보냅니다.">
             {sendToPartnerMut.isPending ? "발송 중..." : "거래처에게 발송"}
           </button>
@@ -734,6 +771,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
           <button
             onClick={async () => {
               if (!companyId || !userId) return;
+              if (!(await confirmUnsaved())) return;
               try {
                 const { createDocumentShare } = await import("@/lib/document-sharing");
                 const result = await createDocumentShare({
@@ -934,8 +972,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
 
           <div className="flex gap-2">
             <button
-              onClick={() => bulkSignMut.mutate()}
-              disabled={bulkSignMut.isPending || bulkSigners.every((s) => !s.name.trim() || !s.email.trim())}
+              onClick={async () => { if (await confirmUnsaved()) bulkSignMut.mutate(); }}
+              disabled={bulkSignMut.isPending || saveMut.isPending || bulkSigners.every((s) => !s.name.trim() || !s.email.trim())}
               className="btn-primary"
             >
               {bulkSignMut.isPending ? "발송 중..." : `${bulkSigners.filter(s => s.name.trim() && s.email.trim()).length}명에게 일괄 발송`}
@@ -1385,6 +1423,8 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                     onClick={() => {
                       // 편집 진입 시: 원본 마크다운(##·{{변수}})이면 보기와 동일한 채워진 HTML 로 1회 변환
                       if (!isEditing && editContent && !editContent.trim().startsWith("<")) {
+                        //   모양만 바뀌는 변환이라 고친 것으로 치지 않는다 — 아직 안 고쳤으면 변환 뒤 값을 기준으로 다시 잡는다
+                        if (!isDirty) { snapPending.current = true; setSnapTick((t) => t + 1); }
                         setEditContent(toRichHtml(editContent));
                       }
                       setIsEditing((v) => !v);
@@ -1446,7 +1486,7 @@ function DocumentDetailView({ id, onBack }: { id: string; onBack: () => void }) 
                 placeholder="변경 코멘트 (선택)"
                 className="flex-1 px-3 py-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-xl text-sm focus:outline-none focus:border-[var(--primary)]" />
               <button onClick={() => saveMut.mutate()} disabled={saveMut.isPending}
-                className="btn-primary btn-sm">
+                className={isDirty ? "btn-primary btn-sm" : "btn-secondary btn-sm"}>
                 {saveMut.isPending ? "저장 중..." : "저장"}
               </button>
               {(contentType === 'invoice' || contentType === 'quote') && (
