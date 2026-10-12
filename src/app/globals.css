@@ -11592,3 +11592,13 @@ table.tir-items-table { min-width: 640px; }
 .rtf-rev { @apply block font-semibold; }
 .rtf-chg .rtf-rev, .rtf-chg .rtf-input { color: var(--danger); }
 .rtf-input { @apply w-full border-b border-dashed border-[var(--border)] bg-transparent text-right outline-none focus:border-[var(--primary)]; font-variant-numeric: tabular-nums; }
+/* 부가세 부속서류 (2026-10-12 세무 2차 2단계) — 명세 표 줄 클릭 → 건별 팝업 */
+.rtf-detail { @apply w-full text-xs; min-width: 640px; }
+.rtf-click { @apply cursor-pointer; }
+.rtf-click:hover td, td.rtf-click:hover { background: color-mix(in srgb, var(--primary) 6%, transparent); }
+.rtf-drill-overlay { @apply fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4; }
+.rtf-drill { @apply flex w-full max-w-4xl flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] p-4 shadow-xl; max-height: 80vh; }
+.rtf-drill-head { @apply flex flex-wrap items-center gap-3 text-sm; }
+.rtf-drill-head span { @apply text-xs text-[var(--text-muted)]; }
+.rtf-drill-head button { @apply ml-auto; }
+.rtf-drill-body { @apply min-h-0 flex-1 overflow-auto; }

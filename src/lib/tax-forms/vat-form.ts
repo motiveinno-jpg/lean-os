@@ -1,11 +1,12 @@
 // ── 일반과세자 부가가치세 신고서 칸 계산 (2026-10-12 세무 2차 1단계, docs/20261012_PLAN_tax_closing_v2.md 결정 260) ──
 //
 //   기준은 VatReturn 과 같다 — **확정 매입매출전표**의 부가세 유형(결정 60). 칸 번호는 국세청 서식(부가가치세법 시행규칙 별지 제21호) 그대로.
-//   자동으로 못 채우는 칸(예정신고 누락분·대손세액·고정자산 매입·예정고지세액·가산세 등)은 사람이 넣는 값(manual)으로 받는다.
+//   자동으로 못 채우는 칸(예정신고 누락분·대손세액·예정고지세액·가산세 등)은 사람이 넣는 값(manual)으로 받는다.
 //   ⑰ 공제받지 못할 매입세액(54)은 ⑩ 세금계산서 수취분에 넣었다가 ⑰에서 뺀다(서식 작성요령). 납부세액은 전과 같다.
 //   ㉓ 예정신고 미환급세액은 같은 해 예정 신고본(마감한 숫자)에서 읽어 기본값으로 채운다 — 세무 이월(결정 265).
 
-export type VatFormRow = { vat_type: string | null; supply_amount: number; vat_amount: number };
+/** assetCat — 차변이 고정자산 계정(202~240)인 전표(2단계, vat-schedules.assetCatOf). ⑫ 고정자산 매입을 가른다 */
+export type VatFormRow = { vat_type: string | null; supply_amount: number; vat_amount: number; assetCat?: string | null };
 /** 신고서 한 칸 — 금액·세액(+원천세는 인원) */
 export type FormCell = { amount?: number; tax?: number; n?: number };
 export type FormFigures = Record<string, FormCell>;
@@ -29,7 +30,7 @@ export const VAT_LINES: VatLine[] = [
   { no: "9", group: "sale", label: "합계", rate: "㉮", fields: ["amount", "tax"], kind: "sum" },
   { no: "10", group: "buy", sub: "세금계산서 수취분", label: "일반매입", fields: ["amount", "tax"], kind: "auto", hint: "유형 51·54 − ⑫" },
   { no: "11", group: "buy", sub: "세금계산서 수취분", label: "수출기업 수입분 납부유예", fields: ["amount", "tax"], kind: "manual" },
-  { no: "12", group: "buy", sub: "세금계산서 수취분", label: "고정자산 매입", fields: ["amount", "tax"], kind: "manual", hint: "적으면 ⑩에서 빠진다" },
+  { no: "12", group: "buy", sub: "세금계산서 수취분", label: "고정자산 매입", fields: ["amount", "tax"], kind: "auto", hint: "유형 51 · 고정자산 계정" },
   { no: "13", group: "buy", label: "예정신고 누락분", fields: ["amount", "tax"], kind: "manual" },
   { no: "14", group: "buy", label: "매입자발행 세금계산서", fields: ["amount", "tax"], kind: "manual" },
   { no: "15", group: "buy", label: "그 밖의 공제매입세액", fields: ["amount", "tax"], kind: "auto", hint: "유형 57·61" },
@@ -76,7 +77,10 @@ export function computeVatForm(rows: VatFormRow[], manual: FormFigures = {}): Fo
     amount: sale.reduce((s, k) => s + r0(F[k]?.amount), 0),
     tax: sale.reduce((s, k) => s + r0(F[k]?.tax), 0) + r0(F["8"]?.tax),
   };
-  //   ⑩ = 세금계산서 수취분(51·54) − ⑫ 고정자산(사람이 가른 몫)
+  //   ⑫ = 세금계산서(51)로 받은 고정자산 — 전표 차변 계정이 202~240 (2026-10-12 2단계에서 사람 칸 → 자동)
+  //   ⑩ = 세금계산서 수취분(51·54) − ⑫
+  const fa = rows.filter((x) => String(x.vat_type || "") === "51" && x.assetCat);
+  F["12"] = { amount: fa.reduce((s, x) => s + r0(x.supply_amount), 0), tax: fa.reduce((s, x) => s + r0(x.vat_amount), 0) };
   const ti = by(["51", "54"]);
   F["10"] = { amount: ti.amount - r0(F["12"]?.amount), tax: ti.tax - r0(F["12"]?.tax) };
   F["15"] = by(["57", "61"]);

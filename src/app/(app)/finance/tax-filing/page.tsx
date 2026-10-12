@@ -32,7 +32,7 @@ import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
 import { comparePeople } from "@/lib/people-sort";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
-import { VatReturn, VAT_PERIODS, vatFilingNow, vatDueDate, type VatPeriodKey } from "@/app/(app)/reports/vat/_components/VatReturn";
+import { VatReturn, VAT_PERIODS, VAT_DOCS, vatFilingNow, vatDueDate, type VatPeriodKey, type VatDocKey } from "@/app/(app)/reports/vat/_components/VatReturn";
 import { computeStatements } from "@/lib/closing-snapshot";
 import { TaxReturnSheet } from "@/components/tax-return-sheet";
 import { computeWhtForm } from "@/lib/tax-forms/wht-form";
@@ -162,6 +162,8 @@ export default function TaxFilingPage() {
   const [year, setYear] = useState(() => { const q = Number(searchParams?.get("year")); return q >= 2000 && q <= 2100 ? q : vatFilingNow().year; });
   const years = useMemo(() => { const y = Number(todayKst().slice(0, 4)); return [y, y - 1, y - 2]; }, []);
   const [vatPeriod, setVatPeriod] = useState<VatPeriodKey>(() => { const q = searchParams?.get("period"); return VAT_PERIODS.some((p) => p.key === q) ? (q as VatPeriodKey) : vatFilingNow().key; });
+  //   부가세 서류(신고서·부속서류) — 한 줄 셀렉트. 기억하지 않는다(나갔다 오면 신고서)
+  const [vatDoc, setVatDoc] = useState<VatDocKey>("return");
   const vatExportRef = useRef<(() => void) | null>(null);   // VatReturn 이 집계 후 채운다 — 조회 줄 [세무사 전달 엑셀]
   //   지급명세서 — 근로는 반기, 사업소득은 달 (결정 103). 기본 반기 = 마지막으로 끝난 반기(1~6월엔 지난해 하반기)
   const [stmtKind, setStmtKind] = useState<"work" | "biz">("work");
@@ -652,7 +654,7 @@ export default function TaxFilingPage() {
           {tab === "vat" && (
             <QueryBar right={<>
               {vatEfileOn && <button type="button" className="btn-secondary btn-sm" onClick={() => setVatEfileOpen(true)} title="홈택스 '신고서 파일 변환' 업로드용 파일 (일반과세자 정기신고 · 전자세금계산서). 베타">전자신고 파일 (베타)</button>}
-              <button type="button" className="btn-secondary btn-sm" onClick={() => vatExportRef.current?.()} title="신고서 · 매출처별 · 매입처별 합계표 · 전표 목록 · 4개 시트">세무사 전달 엑셀</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => vatExportRef.current?.()} title="신고서 · 세금계산서/계산서 합계표 4종 · 카드 수령·발행 · 불공제 · 감가상각 취득 · 전표 목록">세무사 전달 엑셀</button>
             </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">연도</label>
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
@@ -660,6 +662,10 @@ export default function TaxFilingPage() {
               </select>
               <select value={vatPeriod} onChange={(e) => setVatPeriod(e.target.value as VatPeriodKey)} className="qk-input h-8 px-2.5 text-xs" aria-label="신고기간">
                 {VAT_PERIODS.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
+              </select>
+              {/*   서류 = 신고서·부속서류 한 줄 셀렉트 (2026-10-12 2단계 — 상자 안 두 번째 탭 줄 금지) */}
+              <select value={vatDoc} onChange={(e) => setVatDoc(e.target.value as VatDocKey)} className="qk-input h-8 px-2.5 text-xs" aria-label="서류">
+                {VAT_DOCS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
               </select>
               <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={vatDueDate(year, vatPeriod)} done={taxChecked.has(`vat-${vatDueDate(year, vatPeriod)}`)} doneInfo={taxChecked.get(`vat-${vatDueDate(year, vatPeriod)}`)} onToggle={(on) => toggleChecked(`vat-${vatDueDate(year, vatPeriod)}`, on)} /> · 홈택스</span>
             </QueryBar>
@@ -708,7 +714,7 @@ export default function TaxFilingPage() {
         <QueryBody>
           <div className="ev-scroll fa-scroll">
             {tab === "vat" ? (
-              <VatReturn companyId={companyId} userId={userId} canWrite={canTaxWrite} year={year} period={vatPeriod} exportRef={vatExportRef} />
+              <VatReturn companyId={companyId} userId={userId} canWrite={canTaxWrite} year={year} period={vatPeriod} doc={vatDoc} exportRef={vatExportRef} />
             ) : tab === "cit" ? (
               citLoading ? <div className="collect-empty">연간 손익을 계산하는 중…</div> : (
                 <div className="vr-wrap">

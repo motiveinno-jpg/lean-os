@@ -33,6 +33,8 @@ type Props = {
   compute: (manual: FormFigures) => FormFigures;
   /** 근거 자료 id (전표·급여 등) — '자료 +a −b' */
   sources: Record<string, string[]>;
+  /** 부속서류 숫자 — 마감 때 신고본에 같이 남긴다(2단계) */
+  schedules?: Record<string, unknown>;
   /** 신고본이 없을 때 사람 칸 기본값(예: ㉓ 예정신고 미환급세액) · 출처 한 줄 */
   defaultManual?: FormFigures;
   defaultManualNote?: string;
@@ -91,7 +93,7 @@ export function TaxReturnSheet(p: Props) {
     try {
       const kept: FormFigures = {};
       for (const [k, v] of Object.entries(manual)) if (Number(v?.amount || 0) || Number(v?.tax || 0)) kept[k] = v;
-      await closeTaxReturn({ companyId: p.companyId, userId: p.userId, kind: p.kind, periodKey: p.periodKey, list, figures: current, manual: kept, sourceIds: p.sources });
+      await closeTaxReturn({ companyId: p.companyId, userId: p.userId, kind: p.kind, periodKey: p.periodKey, list, figures: current, manual: kept, sourceIds: p.sources, schedules: p.schedules });
       await qc.invalidateQueries({ queryKey: qk });
       toast(filed ? "수정본으로 마감했습니다" : "마감했습니다. 홈택스 제출은 따로 하세요", "success");
     } catch (e: any) { toast(friendlyError(e, "마감에 실패했습니다"), "error"); }
