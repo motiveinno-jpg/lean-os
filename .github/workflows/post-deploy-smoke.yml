@@ -26,7 +26,7 @@ jobs:
       github.event_name != 'deployment_status' ||
       (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SMOKE_REPORT: "1"
@@ -56,8 +56,14 @@ jobs:
         if: github.event_name == 'deployment_status'
         run: sleep 45
 
+      #   배포 때는 화면·핵심 흐름만(약 5분). 작은 창·휴대폰 폭에서 떠 있는 칸 잘림 점검(전 메뉴 × 2폭, 약 15분)은 새벽 정기 점검과 수동 실행에서
       - name: smoke
-        run: npx playwright test -c playwright.smoke.config.ts
+        run: |
+          if [ "${{ github.event_name }}" = "deployment_status" ]; then
+            npx playwright test -c playwright.smoke.config.ts --grep-invert "떠서 열리는 칸"
+          else
+            npx playwright test -c playwright.smoke.config.ts
+          fi
 
       - name: upload report
         if: failure()

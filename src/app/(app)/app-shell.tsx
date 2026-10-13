@@ -1,4 +1,5 @@
 "use client";
+import { PopoverFit } from "@/components/popover-fit";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
@@ -329,6 +330,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
   if (isEmbed)  {
     return (
       <div className="embed-page min-h-screen p-4 md:p-5">
+        <PopoverFit />
         <div className="app-content-scale w-full">
           <CollectRunNotice />
           <RouteGuard>
@@ -589,6 +591,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {/*   ★ 앱 전체 글자 키우기 ("전체 글자가 너무 작다는 평 · 2px 정도") — 값 하나(.app-zoom)로 사이드바·머리·본문이 같이 커진다.
                     랜딩·온보딩은 이 껍데기 밖이라 그대로. */}
               <div className="app-zoom"><AppContent>{children}</AppContent></div>
+              {/*   떠서 열리는 칸(검색조건·달력·고르기 목록·메뉴)이 화면 밖으로 잘리지 않게 — 한 곳에서 전부 */}
+              <PopoverFit />
             </GuideProvider>
           </PopupProvider>
           {/* 페이지 무관 백그라운드 sync chain — 어떤 페이지에서든 작동 */}
