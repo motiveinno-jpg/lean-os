@@ -113,3 +113,8 @@ Thumbs.db
 # iCloud 가 만드는 중복본 ("index 2", "main 2" 같은 이름)
 * 2
 * 2.*
+
+# 배포 후 점검 산출물
+e2e/smoke/.auth-state.json
+smoke-report/
+test-results/

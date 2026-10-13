@@ -1,0 +1,70 @@
+name: post-deploy smoke (운영 배포 후 자동 점검)
+
+# 운영(www.owner-view.com) 배포가 끝날 때마다 QA 시드 회사 계정으로 실제 화면을 눌러 본다.
+#   ① 사이드바 전 메뉴가 열리는지(오류 화면·404·로그인 튕김·스크립트 오류·빈 화면)
+#   ② 핵심 흐름: 파일보관함 폴더·올리기 / 거래처 등록·중복 거절 문구 / 은행연동 토큰 / 결재 양식 / 알림 / MCP 도구 목록
+#   실패는 운영자 오류 기록(error_logs, source=smoke)으로 들어가 운영자 페이지·아침 점검 메일에 뜬다. 전부 통과하면 지난 실패 기록을 해결로 돌린다.
+#   매일 새벽에도 한 번 돈다 — 배포가 없어도 외부 서비스·데이터 때문에 깨지는 화면을 잡으려고.
+
+on:
+  deployment_status:
+  schedule:
+    - cron: "0 17 * * *"     # 매일 02:00 KST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: post-deploy-smoke
+  cancel-in-progress: true   # 연달아 배포되면 마지막 배포만 점검
+
+jobs:
+  smoke:
+    # Vercel 이 Production 배포 성공을 알릴 때만(미리보기 배포·진행 중 상태는 건너뜀)
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SMOKE_REPORT: "1"
+      SMOKE_BASE_URL: https://www.owner-view.com
+      SMOKE_SHA: ${{ github.event.deployment.sha || github.sha }}
+    steps:
+      - name: Require SUPABASE_ACCESS_TOKEN
+        run: |
+          if [ -z "${SUPABASE_ACCESS_TOKEN}" ]; then echo "::error::SUPABASE_ACCESS_TOKEN secret is not set"; exit 1; fi
+
+      - uses: actions/checkout@v4
+        with:
+          # 점검하는 메뉴 목록(sidebar.tsx)이 배포된 코드와 같아야 한다
+          ref: ${{ github.event.deployment.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+
+      - name: install
+        run: npm ci --ignore-scripts
+
+      - name: playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # Vercel 이 '성공'을 알린 직후엔 엣지 캐시가 덜 바뀐 경우가 있어 잠깐 기다린다
+      - name: wait for edge
+        if: github.event_name == 'deployment_status'
+        run: sleep 45
+
+      - name: smoke
+        run: npx playwright test -c playwright.smoke.config.ts
+
+      - name: upload report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-report
+          path: |
+            smoke-report/
+            test-results/
+          retention-days: 7

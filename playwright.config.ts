@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: ['smoke/**'],   // 배포 후 점검은 playwright.smoke.config.ts 로 따로 돈다
   fullyParallel: false,
   workers: 1,
   reporter: [['list']],
