@@ -44,7 +44,8 @@ const toRp = (r: any): RetirementPayment => ({ ...r, retirement_pay: Number(r.re
 /** 지급일 기준 [from, to] (YYYY-MM-DD) */
 export async function listRetirementPayments(companyId: string, from: string, to: string): Promise<RetirementPayment[]> {
   const data = logRead("lib/retirement:payments", await (supabase as any).from("retirement_payments").select(RP_SELECT)
-    .eq("company_id", companyId).gte("paid_on", from).lte("paid_on", to).order("paid_on").order("employee_name"));
+    .eq("company_id", companyId).gte("paid_on", from).lte("paid_on", to).order("paid_on").order("employee_name")
+    .limit(1000));   // 기간 안 퇴직금 지급 — 회사당 1,000건을 넘지 않는다
   return ((data || []) as any[]).map(toRp);
 }
 export async function saveRetirementPayment(companyId: string, input: RetirementPaymentInput, id?: string): Promise<void> {

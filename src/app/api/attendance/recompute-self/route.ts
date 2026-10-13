@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
       admin.from('leave_requests')
         .select('start_date, end_date, leave_unit, start_time, end_time, days')
         .eq('company_id', companyId).eq('employee_id', emp.id).eq('status', 'approved')
-        .lte('start_date', to).gte('end_date', from),
+        .lte('start_date', to).gte('end_date', from)
+        .limit(500),   // 한 직원·한 재계산 기간의 승인 휴가 — 수백 건을 넘지 않는다
     ]);
     if (rowErr) throw rowErr;
 

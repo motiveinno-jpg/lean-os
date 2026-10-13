@@ -9,7 +9,8 @@ export type ScheduleInputDoc = "lease" | "deemed" | "baddebt" | "refund_claim";
 
 export async function getScheduleInputs(companyId: string, periodKey: string): Promise<Partial<Record<ScheduleInputDoc, any>>> {
   const data = logRead("tax-schedule-inputs:get", await (supabase as any).from("tax_schedule_inputs")
-    .select("doc, data").eq("company_id", companyId).eq("period_key", periodKey));
+    .select("doc, data").eq("company_id", companyId).eq("period_key", periodKey)
+    .limit(20));   // 한 기간의 부속서류 입력 — 서류 종류 수(4)만큼
   const out: Partial<Record<ScheduleInputDoc, any>> = {};
   for (const r of (data || []) as { doc: ScheduleInputDoc; data: any }[]) out[r.doc] = r.data;
   return out;

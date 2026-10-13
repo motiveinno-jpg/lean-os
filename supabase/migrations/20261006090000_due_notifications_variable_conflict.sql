@@ -10,6 +10,7 @@ CREATE OR REPLACE FUNCTION public.run_due_notifications()
  SECURITY DEFINER
  SET search_path TO 'public'
 AS $function$
+-- dedupe-ok: notifications 는 aa_notifications_collapse 트리거가 사람·대상 잠금으로 줄 세우고 uq_notifications_one_unread_per_subject 가 막는다(20260928270000)
 declare
   v_today date := (now() at time zone 'Asia/Seoul')::date;
   v_tom date := ((now() at time zone 'Asia/Seoul')::date + 1);

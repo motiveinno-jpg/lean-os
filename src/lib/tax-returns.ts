@@ -23,7 +23,8 @@ export async function listTaxReturns(companyId: string, kind: TaxReturnKind, per
   const data = logRead("tax-returns:list", await (supabase as any).from("tax_returns")
     .select("*, closer:closed_by(name)")
     .eq("company_id", companyId).eq("kind", kind).eq("period_key", periodKey)
-    .order("revision", { ascending: true }));
+    .order("revision", { ascending: true })
+    .limit(100));   // 한 신고 기간의 차수(수정신고 포함) — 몇 건
   return (data || []) as TaxReturn[];
 }
 

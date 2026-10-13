@@ -53,6 +53,8 @@ const h = vi.hoisted(() => {
       update: () => { s.op = "update"; return api; },
       eq: (col: string, val: any) => { s.filters.push({ col, val, op: "eq" }); return api; },
       in: (col: string, val: any) => { s.filters.push({ col, val, op: "in" }); return api; },
+      neq: (col: string, val: any) => { s.filters.push({ col, val, op: "neq" }); return api; },
+      delete: () => { s.op = "update"; return api; },
       limit: () => api,
       single: () => api,
       maybeSingle: () => api,
@@ -174,10 +176,11 @@ describe("createApprovalRequest — 정책 폴백·승인자 해석", () => {
     expect(steps()).toEqual([expect.objectContaining({ approver_id: "u-owner" })]);
   });
 
-  it("폴백도 없음 → 요청자 본인에게 배정 (막다른 결재 방지)", async () => {
+  //   본인 결재 금지(f6acd97d) 뒤로는 신청자 본인을 승인자로 넣지 않는다 — 다른 승인자가 없으면 올리지 않고 이유를 알린다
+  it("폴백도 없음 → 본인에게 배정하지 않고 상신을 막는다", async () => {
     st.policies = [{ id: "p", auto_approve_below: 0, stages: [{ stage: 1, name: "재무 승인", approver_role: "finance", required_count: 1 }] }];
-    await createApprovalRequest({ ...base, requestType: "expense", amount: 10_000 });
-    expect(steps()).toEqual([expect.objectContaining({ approver_id: "user-req" })]);
+    await expect(createApprovalRequest({ ...base, requestType: "expense", amount: 10_000 })).rejects.toThrow();
+    expect(steps()).toEqual([]);
   });
 
   it("단계에 특정 인물(approver_id) 지정 시 역할 해석 없이 그 사람으로", async () => {
