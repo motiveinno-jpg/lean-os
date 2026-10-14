@@ -34,6 +34,8 @@ import { loadJobDefault, JOB_CODES } from "@/lib/insurance-edi";
 import { listRetirementPayments, type RetirementPayment } from "@/lib/retirement";
 import type { DailyLog, IncomePayment } from "@/lib/tax-forms/wht-income";
 import type { FormFigures } from "@/lib/tax-forms/vat-form";
+import { writeProtectedXlsx, MIN_XLSX_PASSWORD } from "@/lib/xlsx-protect";
+import { useModalKeys } from "@/hooks/use-modal-keys";
 import { listConfirmed, type ConfirmedSettlement } from "@/lib/year-end-settlements";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
@@ -241,7 +243,11 @@ export function useStatementsTab(p: {
 
   //   4대보험 3종 엑셀 — 신고서 칸 순서(공단 EDI 업로드 양식 아님). 주민번호는 보험 RPC(get_rrns_for_insurance) 대신
   //   세무 신고 화면이라 지급명세서와 같은 RPC 를 쓴다(조회 기록은 같은 표에 남는다)
-  const exportInsurance = async () => {
+  //   주민번호가 든 엑셀은 비밀번호를 걸어 내려준다(2026-10-14, 사장님 결정 — 결정 108 숙제). 비밀번호는 저장하지 않는다.
+  const saveBook = async (wb: XLSX.WorkBook, name: string, password?: string) => {
+    if (password) await writeProtectedXlsx(wb, name, password); else XLSX.writeFile(wb, name);
+  };
+  const exportInsurance = async (password?: string) => {
     const ids = lines.map((l) => l.employeeId).filter(Boolean) as string[];
     const rrn = ids.length ? await fetchRrns(ids) : new Map<string, string>();
     const idCol = (l: Line) => (l.employeeId ? rrn.get(l.employeeId) || "(미등록)" : "");
@@ -272,15 +278,23 @@ export function useStatementsTab(p: {
       ["※ 주민등록번호가 포함된 파일입니다. 보관·전달에 주의하세요."]]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, D.label.slice(0, 30));
-    XLSX.writeFile(wb, `${D.label.replace(/\s|\(|\)/g, "")}_${periodKey}.xlsx`);
-    if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다. 조회 기록이 남습니다`, "info");
+    await saveBook(wb, `${D.label.replace(/\s|\(|\)/g, "")}_${periodKey}.xlsx`, rrn.size > 0 ? password : undefined);
+    if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다${password ? " — 비밀번호를 걸었습니다" : ""}. 조회 기록이 남습니다`, "info");
   };
 
   const periodLabel = D.period === "half" ? `${year}년 ${half === 1 ? "상반기(1~6월)" : "하반기(7~12월)"}`
     : doc === "iw" ? `${month} 근무분` : doc === "im" ? `${prevOf(month)} → ${month}` : D.period === "month" ? `${month} 지급분` : `${annualYear}년${insurance ? "" : " 귀속"}`;
+  const [pwAsk, setPwAsk] = useState(false);
+  const [pw, setPw] = useState({ a: "", b: "" });
+  const [pwBusy, setPwBusy] = useState(false);
+  //   주민번호가 실제로 담길 사람이 있으면 먼저 비밀번호를 묻는다(없으면 바로 내려받기)
   const exportXlsx = async () => {
     if (!lines.length) { toast("이 기간에 해당 지급이 없습니다", "info"); return; }
-    if (insurance) return exportInsurance();
+    if (empIds.some((id) => rrnRegistered.has(id))) { setPw({ a: "", b: "" }); setPwAsk(true); return; }
+    return runExport();
+  };
+  const runExport = async (password?: string) => {
+    if (insurance) return exportInsurance(password);
     const rrn = empIds.length ? await fetchRrns(empIds) : new Map<string, string>();
     const idCol = (l: Line) => (l.employeeId ? rrn.get(l.employeeId) || "(미등록)" : "(세무사 기입)");
     const head = doc === "sw" ? ["이름", "주민등록번호", ...months.map((m) => `${Number(m.slice(5, 7))}월`), "합계"]
@@ -297,9 +311,36 @@ export function useStatementsTab(p: {
       ...(irpN ? [[`※ IRP 이전(과세이연) 퇴직금 ${irpN}건은 위에 없습니다 — 홈택스에서 직접.`]] : [])]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, D.label.slice(0, 30));
-    XLSX.writeFile(wb, `${D.label.replace(/\s|\(|\)/g, "")}_${periodKey}.xlsx`);
-    if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다. 조회 기록이 남습니다`, "info");
+    await saveBook(wb, `${D.label.replace(/\s|\(|\)/g, "")}_${periodKey}.xlsx`, rrn.size > 0 ? password : undefined);
+    if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다${password ? " — 비밀번호를 걸었습니다" : ""}. 조회 기록이 남습니다`, "info");
   };
+  useModalKeys(pwAsk, () => setPwAsk(false));
+  const pwOk = pw.a.length >= MIN_XLSX_PASSWORD && pw.a === pw.b;
+  const submitPw = async () => {
+    if (!pwOk || pwBusy) return;
+    setPwBusy(true);
+    try { await runExport(pw.a); setPwAsk(false); setPw({ a: "", b: "" }); }
+    catch (e) { toast(friendlyError(e, "엑셀을 만들지 못했습니다"), "error"); }
+    finally { setPwBusy(false); }
+  };
+  const pwDialog = pwAsk && (
+    <div className="inv-modal" onClick={() => setPwAsk(false)}>
+      <div className="inv-modal-box" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="엑셀 비밀번호">
+        <div className="inv-modal-head"><h3>엑셀 비밀번호</h3><button type="button" className="inv-modal-x" onClick={() => setPwAsk(false)}>✕</button></div>
+        <p className="inv-modal-desc">주민등록번호가 들어가는 파일이라 열 때 비밀번호를 묻게 합니다. 비밀번호는 오너뷰에 저장하지 않습니다 — 받는 사람(세무사 등)에게는 파일과 다른 경로로 알려 주세요.</p>
+        <label className="field-label">비밀번호 ({MIN_XLSX_PASSWORD}자 이상)</label>
+        <input type="password" className="field-input" autoComplete="new-password" value={pw.a} onChange={(e) => setPw((x) => ({ ...x, a: e.target.value }))} />
+        <label className="field-label">한 번 더</label>
+        <input type="password" className="field-input" autoComplete="new-password" value={pw.b} onChange={(e) => setPw((x) => ({ ...x, b: e.target.value }))}
+          onKeyDown={(e) => { if (e.key === "Enter") void submitPw(); }} />
+        {pw.b && pw.a !== pw.b && <p className="rtf-legend vr-warn">두 비밀번호가 다릅니다.</p>}
+        <div className="inv-modal-actions"><span className="doc-sums-sp" />
+          <button type="button" className="btn-secondary btn-sm" onClick={() => setPwAsk(false)} disabled={pwBusy}>취소</button>
+          <button type="button" className="btn-primary btn-sm" disabled={!pwOk || pwBusy} onClick={() => void submitPw()}>{pwBusy ? "만드는 중…" : "비밀번호 걸고 내려받기"}</button>
+        </div>
+      </div>
+    </div>
+  );
 
   const bar = (
     <>
@@ -341,6 +382,7 @@ export function useStatementsTab(p: {
 
   const body = loading ? <div className="collect-empty">불러오는 중…</div> : (
     <div className="vr-wrap">
+      {pwDialog}
       {lines.length === 0 && <div className="collect-empty">{periodLabel} <b>{D.label}</b>에 들어갈 지급이 없습니다.<br />{emptyMsg}</div>}
       <p className="inv-hint">
         {D.label} · {periodLabel} · {doc === "it" ? <>근로자 {lines.filter((l) => l.key !== "daily-total").length}명 · 보수총액 {won(tot.amount)}</>

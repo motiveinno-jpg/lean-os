@@ -1,5 +1,6 @@
 "use client";
 import { AuditTrailPanel } from "@/components/audit-trail-panel";
+import { RrnAccessLogPanel } from "@/components/rrn-access-log-panel";
 import { logRead } from "@/lib/log-read";
 import { useMyPermissions } from "@/lib/permissions";
 import { Ico } from "@/components/ui-icon";
@@ -735,6 +736,8 @@ function SettingsPageInner({ group }: { group: SettingsGroupKey }) {
             <MfaPolicySection companyId={companyId} />
             {/*   변경 이력 — 누가 언제 무엇을 바꿨나 (2026-08-27 ERP 3순위 ④) */}
             <AuditTrailPanel companyId={companyId} />
+            {/*   주민등록번호 조회 기록 (2026-10-14) — 읽기 RLS 가 마스터만이라 마스터에게만 그린다 */}
+            {permMaster && <RrnAccessLogPanel companyId={companyId} />}
           </div>
         )}
 

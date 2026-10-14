@@ -171,7 +171,8 @@ export function InsuranceReportDialog({ companyId, employees, mode, onClose }: P
         const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
         if (top && top !== ctx.jobDefault) saveJobDefault(companyId, top).catch(() => {});
       }
-      toast(`${rows.length}명 신고 파일을 내려받았습니다. 주민등록번호가 들어 있어 열람 기록이 남습니다${missingRrn.length ? ` · 미등록 ${missingRrn.length}명은 뺐습니다` : ""}`, "success");
+      //   EDI 에 그대로 올리는 파일이라 비밀번호를 걸지 않는다(걸면 업로드가 안 된다, 2026-10-14) — 올린 뒤 지우도록 안내
+      toast(`${rows.length}명 신고 파일을 내려받았습니다. 주민등록번호가 들어 있어 열람 기록이 남습니다 — EDI에 올린 뒤 PC에서 지우세요${missingRrn.length ? ` · 미등록 ${missingRrn.length}명은 뺐습니다` : ""}`, "success");
     } catch (e) { toast(friendlyError(e, "파일을 만들지 못했습니다"), "error"); }
     finally { setBusy(false); }
   };
