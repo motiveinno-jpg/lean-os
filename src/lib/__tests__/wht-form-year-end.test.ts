@@ -35,3 +35,13 @@ describe("computeWhtForm — A04", () => {
     expect(F.PAY.tax).toBe(54_000);
   });
 });
+
+describe("computeWhtForm — A02 중도퇴사 정산", () => {
+  it("A02 는 A10·A99 에 들어가고 환급이면 상계", () => {
+    const F = computeWhtForm({ work: { n: 3, pay: 9_000_000, tax: 150_000 }, biz: z, ret: z, resign: { n: 1, pay: 27_000_000, tax: -80_000 } });
+    expect(F.A02).toEqual({ n: 1, amount: 27_000_000, tax: -80_000 });
+    expect(F.A10).toEqual({ n: 4, amount: 36_000_000, tax: 70_000 });
+    expect(F.A99.tax).toBe(70_000);
+    expect(F.PAY.tax).toBe(70_000);
+  });
+});

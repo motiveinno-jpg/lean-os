@@ -140,3 +140,19 @@ describe("buildWhtEfile — 연말정산 A04·A06", () => {
     expect(buildWhtEfile({ ...FEB, yearMonth: "2027-03", submitYm: "2027-04" }).issues.some((i) => i.field === "A04")).toBe(true);
   });
 });
+
+describe("buildWhtEfile — A02 중도퇴사", () => {
+  it("A02 음수 허용, 연말정산여부는 N(A04·A05·A06·A26·A46 만 Y), 아무 달이나", () => {
+    const r = buildWhtEfile({ ...BASE, yearMonth: "2026-09", submitYm: "2026-10", rows: [
+      { code: "A01", n: 3, pay: 9_000_000, tax: 150_000 },
+      { code: "A02", n: 1, pay: 27_000_000, tax: -80_000 },
+      { code: "A10", n: 4, pay: 36_000_000, tax: 70_000 },
+      { code: "A99", n: 4, pay: 36_000_000, tax: 70_000 },
+    ] });
+    expect(r.issues).toEqual([]);
+    expect(asc(r.bytes!, 330, 331)).toBe("N");
+    const at = 400 + 2 + 200 + 2 + (150 + 2) * 1;
+    expect(asc(r.bytes!, at + 9, at + 12)).toBe("A02");
+    expect(asc(r.bytes!, at + 42, at + 57)).toBe("-00000000080000");
+  });
+});

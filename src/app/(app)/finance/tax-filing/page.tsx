@@ -54,7 +54,7 @@ import { listRetirementPayments, type RetirementPayment } from "@/lib/retirement
 import { RetirementPaymentDialog } from "@/components/retirement-payment-dialog";
 import { DailyLogDialog, IncomePaymentDialog } from "@/components/wht-income-dialogs";
 import { listDailyLogs, listIncomePayments } from "@/lib/wht-income-records";
-import { listConfirmed, yearEndAgg, type ConfirmedSettlement } from "@/lib/year-end-settlements";
+import { listConfirmed, listResignSettled, isResign, yearEndAgg, type ConfirmedSettlement } from "@/lib/year-end-settlements";
 import { whtIncomeAgg, INCOME_KIND_LABEL, type DailyLog, type IncomePayment } from "@/lib/tax-forms/wht-income";
 import { entertainmentLimit, isEntertainmentAccount, isSalesAccount } from "@/lib/entertainment-limit";
 
@@ -182,7 +182,13 @@ export default function TaxFilingPage() {
   const yeYear = month.slice(5, 7) === "02" ? Number(month.slice(0, 4)) - 1 : null;
   const { data: yeList = [], isLoading: yeLoading } = useQuery<ConfirmedSettlement[]>({
     queryKey: ["year-end-confirmed", companyId, yeYear], enabled: !!companyId && tab === "wht" && yeYear != null,
-    queryFn: () => listConfirmed(companyId!, yeYear!),
+    //   중도 퇴사 정산(A02 쪽)은 뺀다 — 같은 해 한 사람 한 줄이라 둘 다일 수 없다
+    queryFn: async () => (await listConfirmed(companyId!, yeYear!)).filter((s) => !isResign(s)),
+  });
+  //   중도 퇴사 정산 (2026-10-14) — 퇴사월 지급분 A02. 어느 달이든
+  const { data: resignList = [], isLoading: resignLoading } = useQuery<ConfirmedSettlement[]>({
+    queryKey: ["year-end-resign", companyId, month], enabled: !!companyId && tab === "wht",
+    queryFn: () => listResignSettled(companyId!, month),
   });
 
   //   법인세 예상 (결정 104) — 마감·재무제표와 같은 lib(computeStatements = 확정 전표)로 연간 손익을 계산한다.
@@ -275,15 +281,17 @@ export default function TaxFilingPage() {
   const makeEfile = () => {
     if (!companyInfo) return;
     try { if (typeof window !== "undefined") window.sessionStorage.setItem(`ov.hometax-id.${companyId}`, hometaxId.trim()); } catch { /* 무시 */ }
-    const { work, biz, ret, sum, daily, other, interest, dividend, yearEnd } = T;
+    const { work, biz, ret, sum, daily, other, interest, dividend, yearEnd, resign } = T;
     const efRows: WhtEfileRow[] = [
       { code: "A01" as const, n: work.n, pay: work.taxable, tax: work.incomeTax },
-      //   4단계 — 일용(A03), 근로 가감계(A10) = A01 + A03 + A04
+      //   중도퇴사 정산(A02, 환급 음수 가능)
+      ...(resign.n > 0 ? [{ code: "A02" as const, n: resign.n, pay: resign.pay, tax: resign.tax }] : []),
+      //   4단계 — 일용(A03), 근로 가감계(A10) = A01 + A02 + A03 + A04
       ...(daily.n > 0 ? [{ code: "A03" as const, n: daily.n, pay: daily.pay, tax: daily.tax }] : []),
       //   연말정산 4단계 — A04 합계(인원·총급여·차감징수) + A06 납부금액(분납 없음 → A04 와 같은 세액, 규격 'A04 = A05 + A06')
       ...(yearEnd.n > 0 ? [{ code: "A04" as const, n: yearEnd.n, pay: yearEnd.pay, tax: yearEnd.tax }] : []),
       ...(yearEnd.tax !== 0 ? [{ code: "A06" as const, n: 0, pay: 0, tax: yearEnd.tax }] : []),
-      { code: "A10" as const, n: work.n + daily.n + yearEnd.n, pay: work.taxable + daily.pay + yearEnd.pay, tax: work.incomeTax + daily.tax + yearEnd.tax },
+      { code: "A10" as const, n: work.n + resign.n + daily.n + yearEnd.n, pay: work.taxable + resign.pay + daily.pay + yearEnd.pay, tax: work.incomeTax + resign.tax + daily.tax + yearEnd.tax },
       //   퇴직소득 그 외(A22)·가감계(A20) — 규격 원천징수소득코드표 (원천신고 전산매체 제출요령 V2)
       ...(ret.n > 0 ? [
         { code: "A22" as const, n: ret.n, pay: ret.pay, tax: ret.incomeTax },
@@ -337,20 +345,21 @@ export default function TaxFilingPage() {
     //   4단계 — 일용(A03)·기타(A42)·이자(A50)·배당(A60). 법인에게 준 이자·배당은 법인세 원천(A80)이라 뺀다(whtIncomeAgg)
     const X = whtIncomeAgg(dailyLogs, incomePays);
     const yearEnd = yearEndAgg(yeList);
-    const extra = [X.daily, X.other, X.interest, X.dividend, yearEnd];
+    const resign = yearEndAgg(resignList);
+    const extra = [X.daily, X.other, X.interest, X.dividend, yearEnd, resign];
     return {
       work: aggOf(rows.filter((r) => !r.biz)),
       biz: aggOf(rows.filter((r) => r.biz)),
       all,
       ret,
-      daily: X.daily, other: X.other, interest: X.interest, dividend: X.dividend, corpCount: X.corpCount, yearEnd,
+      daily: X.daily, other: X.other, interest: X.interest, dividend: X.dividend, corpCount: X.corpCount, yearEnd, resign,
       irpN: retRows.length - retList.length,
       //   총합계(A99)·납부 세액 = 급여 명세 + 퇴직소득 + 일용·기타·이자·배당 + 연말정산(차감징수 — 환급이면 음수라 순액)
       sum: { n: all.n + ret.n + extra.reduce((s, a) => s + a.n, 0), taxable: all.taxable + ret.pay + extra.reduce((s, a) => s + a.pay, 0),
         incomeTax: all.incomeTax + ret.incomeTax + extra.reduce((s, a) => s + a.tax, 0), localTax: all.localTax + ret.localTax + extra.reduce((s, a) => s + a.local, 0) },
       lastIssued: rows.reduce<string | null>((m, r) => (r.issuedAt && (!m || r.issuedAt > m) ? r.issuedAt : m), null),
     };
-  }, [rows, retRows, dailyLogs, incomePays, yeList]);
+  }, [rows, retRows, dailyLogs, incomePays, yeList, resignList]);
 
   //   ── 신고서 서식 · 마감 (2026-10-12 세무 2차 1단계) — 숫자는 위 T 그대로(전자신고 파일과 같은 값) ──
   const canTaxWrite = !isAdvisor && (isMaster || hasPerm("/finance/tax-filing"));
@@ -378,7 +387,7 @@ export default function TaxFilingPage() {
     work: { n: T.work.n, pay: T.work.taxable, tax: T.work.incomeTax },
     biz: { n: T.biz.n, pay: T.biz.taxable, tax: T.biz.incomeTax },
     ret: { n: T.ret.n, pay: T.ret.pay, tax: T.ret.incomeTax },
-    daily: T.daily, other: T.other, interest: T.interest, dividend: T.dividend, yearEnd: T.yearEnd,
+    daily: T.daily, other: T.other, interest: T.interest, dividend: T.dividend, yearEnd: T.yearEnd, resign: T.resign,
   }, m), [T]);
   const whtSources = useMemo(() => ({
     payroll: rows.map((r) => `${r.employee_id}:${r.period_month}`),
@@ -386,27 +395,30 @@ export default function TaxFilingPage() {
     daily: dailyLogs.map((r) => r.id),
     income: incomePays.map((r) => r.id),
     yearEnd: yeList.map((r) => r.id),
-  }), [rows, retRows, dailyLogs, incomePays, yeList]);
+    resign: resignList.map((r) => r.id),
+  }), [rows, retRows, dailyLogs, incomePays, yeList, resignList]);
   //   마감 때 신고본에 같이 남기는 것 — 급여대장(발송분)·일용·지급 기록·퇴직소득 (4단계)
   const whtSchedules = useMemo(() => ({
     payrollLedger: rows.map(({ issuedAt: _i, ...r }) => r),
     daily: dailyLogs, income: incomePays,
     retirement: retRows.map((r) => ({ id: r.id, employee_name: r.employee_name, paid_on: r.paid_on, retirement_pay: r.retirement_pay, income_tax: r.income_tax, local_tax: r.local_tax, irp_deferred: r.irp_deferred })),
     yearEnd: yeList.map((r) => ({ id: r.id, employee_id: r.employee_id, pay: r.result?.pay, decided: r.result?.decided, paid: r.result?.paid, diff: r.result?.diff, diffLocal: r.result?.diffLocal })),
-  }), [rows, dailyLogs, incomePays, retRows, yeList]);
+    resign: resignList.map((r) => ({ id: r.id, employee_id: r.employee_id, pay: r.result?.pay, decided: r.result?.decided, paid: r.result?.paid, diff: r.result?.diff, diffLocal: r.result?.diffLocal })),
+  }), [rows, dailyLogs, incomePays, retRows, yeList, resignList]);
 
 
   const { toast } = useToast();
   const exportWht = () => {
-    if (!rows.length && !retRows.length && !dailyLogs.length && !incomePays.length && !yeList.length) { toast("이 달 급여 발송·퇴직금·일용·지급 기록이 없습니다", "info"); return; }
+    if (!rows.length && !retRows.length && !dailyLogs.length && !incomePays.length && !yeList.length && !resignList.length) { toast("이 달 급여 발송·퇴직금·일용·지급 기록이 없습니다", "info"); return; }
     const wb = XLSX.utils.book_new();
     const ws1 = XLSX.utils.aoa_to_sheet([
       ["원천징수이행상황신고서 준비", `${month} 지급분 (귀속·지급 같은 달 기준)`, `신고·납부 기한 ${dueOf(month)}`, "발송된 급여 명세 기준 (오너뷰)"], [],
       ["구분", "코드", "인원", "총지급액(과세)", "징수 소득세"],
       ["근로소득 간이세액", "A01", T.work.n, num(T.work.taxable), num(T.work.incomeTax)],
       ...(T.daily.n > 0 ? [["근로소득 일용근로", "A03", T.daily.n, num(T.daily.pay), num(T.daily.tax)]] : []),
+      ...(T.resign.n > 0 ? [["근로소득 중도퇴사 (환급은 −)", "A02", T.resign.n, num(T.resign.pay), num(T.resign.tax)]] : []),
       ...(T.yearEnd.n > 0 ? [["근로소득 연말정산 (환급은 −)", "A04", T.yearEnd.n, num(T.yearEnd.pay), num(T.yearEnd.tax)]] : []),
-      ["근로소득 가감계", "A10", T.work.n + T.daily.n + T.yearEnd.n, num(T.work.taxable + T.daily.pay + T.yearEnd.pay), num(T.work.incomeTax + T.daily.tax + T.yearEnd.tax)],
+      ["근로소득 가감계", "A10", T.work.n + T.resign.n + T.daily.n + T.yearEnd.n, num(T.work.taxable + T.resign.pay + T.daily.pay + T.yearEnd.pay), num(T.work.incomeTax + T.resign.tax + T.daily.tax + T.yearEnd.tax)],
       ...(T.biz.n > 0 ? [
         ["사업소득 매월징수", "A25", T.biz.n, num(T.biz.taxable), num(T.biz.incomeTax)],
         ["사업소득 가감계", "A30", T.biz.n, num(T.biz.taxable), num(T.biz.incomeTax)],
@@ -557,15 +569,18 @@ export default function TaxFilingPage() {
   );
 
   //   연말정산 (2026-10-14 연말정산 4단계) — 2월 지급분에만. 확정은 인사 › 증명서 › 연말정산 자료에서
-  const yearEndPanel = yeYear == null ? null : (
+  const yearEndPanel = yeYear == null && resignList.length === 0 ? null : (
     <div className="pnl-panel">
       <div className="tax-retire-head">
-        <h3>연말정산 ({yeYear}년 귀속)</h3>
+        <h3>{yeYear != null ? `연말정산 (${yeYear}년 귀속)` : "중도 퇴사 정산"}</h3>
         <button type="button" className="btn-secondary btn-sm" onClick={() => router.push("/employees?tab=certificates&view=yearend")}>인사에서 확정하기</button>
       </div>
-      <p>인사 › 증명서 › 연말정산 자료에서 <b>확정한</b> 사람만 신고서 A04·A10에 들어갑니다. 소득세는 차감징수세액(환급이면 −)입니다.
-        중도 퇴사자 정산(A02)·반기 신고는 직접 넣으세요.</p>
-      {yeList.length === 0 ? (
+      <p>인사 › 증명서 › 연말정산 자료에서 <b>확정한</b> 사람만 들어갑니다 — 2월 지급분은 지난해 연말정산(A04), 퇴사한 달은 중도 퇴사 정산(A02).
+        소득세는 차감징수세액(환급이면 −)입니다. 반기 신고는 직접 넣으세요.</p>
+      {resignList.length > 0 && (
+        <p className="inv-hint">중도 퇴사 정산 {T.resign.n}명 → A02 · 총급여 {won(T.resign.pay)} · 차감 소득세 {T.resign.tax < 0 ? `환급 ${won(-T.resign.tax)}` : `추가 징수 ${won(T.resign.tax)}`}</p>
+      )}
+      {yeYear == null ? null : yeList.length === 0 ? (
         <div className="collect-empty">확정한 {yeYear}년 귀속 연말정산이 없습니다.{!canReadSalary && <><br /><span className="vr-warn">급여 권한이 없으면 연말정산이 보이지 않아 신고서에서도 빠집니다.</span></>}</div>
       ) : (
         <p className="inv-hint">확정 {T.yearEnd.n}명 · 총급여 {won(T.yearEnd.pay)} · 차감 소득세 {T.yearEnd.tax < 0 ? `환급 ${won(-T.yearEnd.tax)}` : `추가 징수 ${won(T.yearEnd.tax)}`} · 지방소득세 {T.yearEnd.local < 0 ? `환급 ${won(-T.yearEnd.local)}` : won(T.yearEnd.local)}</p>
@@ -859,9 +874,9 @@ export default function TaxFilingPage() {
               local.body
             ) : tab === "stmt" ? (
               stmt.body
-            ) : isLoading || retLoading || dailyLoading || payLoading || (yeYear != null && yeLoading) ? (
+            ) : isLoading || retLoading || dailyLoading || payLoading || (yeYear != null && yeLoading) || resignLoading ? (
               <div className="collect-empty">불러오는 중…</div>
-            ) : rows.length === 0 && retRows.length === 0 && dailyLogs.length === 0 && incomePays.length === 0 && yeList.length === 0 ? (<>
+            ) : rows.length === 0 && retRows.length === 0 && dailyLogs.length === 0 && incomePays.length === 0 && yeList.length === 0 && resignList.length === 0 ? (<>
               <div className="collect-empty">
                 {month} 지급분 <b>급여 발송 기록이 없습니다.</b><br />
                 급여 명세서를 발송하면 신고서에 반영됩니다.<br />
@@ -870,7 +885,7 @@ export default function TaxFilingPage() {
               {/*   무실적 달도 0원 신고서를 마감할 수 있게 (2026-10-12 결정 258 · 빈 상태) */}
               <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
                 periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급 (무실적)`}
-                compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading || (yeYear != null && yeLoading)}
+                compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading || (yeYear != null && yeLoading) || resignLoading}
                 defaultManual={whtDefaultManual} defaultManualNote={whtCarryNote} onFigures={setWhtLive} />
               {yearEndPanel}
               {retirePanel}
@@ -886,7 +901,7 @@ export default function TaxFilingPage() {
                 {/*   서식 화면 · 마감 (2026-10-12 세무 2차 1단계, 결정 258~260) — 예전 '원천징수이행상황신고서' 요약 표를 대신한다 */}
                 <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
                   periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급`}
-                  compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading || (yeYear != null && yeLoading)}
+                  compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading || (yeYear != null && yeLoading) || resignLoading}
                 defaultManual={whtDefaultManual} defaultManualNote={whtCarryNote} onFigures={setWhtLive} />
                 <div className="pnl-grid2">
                   <div className="pnl-panel">
@@ -897,6 +912,7 @@ export default function TaxFilingPage() {
                         <tr><td className="text-left">근로소득분 지방소득세</td><td className="tr mono-number">{T.work.n}</td><td className="tr mono-number">{won(T.work.localTax)}</td></tr>
                         {T.biz.n > 0 && <tr><td className="text-left">사업소득분 지방소득세</td><td className="tr mono-number">{T.biz.n}</td><td className="tr mono-number">{won(T.biz.localTax)}</td></tr>}
                         {T.ret.n > 0 && <tr><td className="text-left">퇴직소득분 지방소득세</td><td className="tr mono-number">{T.ret.n}</td><td className="tr mono-number">{won(T.ret.localTax)}</td></tr>}
+                        {T.resign.n > 0 && <tr><td className="text-left">중도퇴사 정산분 지방소득세 (환급은 −)</td><td className="tr mono-number">{T.resign.n}</td><td className="tr mono-number">{T.resign.local < 0 ? "−" : ""}{won(Math.abs(T.resign.local))}</td></tr>}
                         {T.yearEnd.n > 0 && <tr><td className="text-left">연말정산분 지방소득세 (환급은 −)</td><td className="tr mono-number">{T.yearEnd.n}</td><td className="tr mono-number">{T.yearEnd.local < 0 ? "−" : ""}{won(Math.abs(T.yearEnd.local))}</td></tr>}
                         {T.daily.n > 0 && <tr><td className="text-left">일용근로분 지방소득세</td><td className="tr mono-number">{T.daily.n}</td><td className="tr mono-number">{won(T.daily.local)}</td></tr>}
                         {T.other.n > 0 && <tr><td className="text-left">기타소득분 지방소득세</td><td className="tr mono-number">{T.other.n}</td><td className="tr mono-number">{won(T.other.local)}</td></tr>}

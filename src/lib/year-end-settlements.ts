@@ -88,3 +88,26 @@ export function yearEndAgg(list: ConfirmedSettlement[]): { n: number; pay: numbe
 }
 /** 연말정산 반영 달 — 귀속연도 다음 해 2월 지급분(3/10 신고). 중도 퇴사자 정산(A02)·반기 신고는 다루지 않는다 */
 export const settleMonthOf = (year: number) => `${year + 1}-02`;
+
+// ── 중도 퇴사자 연말정산 (2026-10-14) — 퇴사한 달 지급분 원천세 A02 ──
+//   담당자가 직접 저장·확정한다(퇴사자는 마이페이지에 들어오기 어렵다). 확정 결과(result)에 kind 'resign' · settleMonth(퇴사월)를
+//   함께 남긴다 — DB 칸을 늘리지 않고, result 는 담당자만 쓰는 칸이라 가드가 이미 지킨다.
+//   2월 연말정산(A04)은 kind 'resign' 을 뺀다. 연간 근로 지급명세서 결정세액은 둘 다 쓴다.
+export type ResignMark = { kind: "resign"; settleMonth: string };
+export const isResign = (s: { result?: unknown }) => (s.result as { kind?: string } | null)?.kind === "resign";
+
+/** 담당자 저장(중도 퇴사) — 행이 없으면 만든다. 제출 상태로 둔다(확정은 confirmSettlement) */
+export async function saveByHr(companyId: string, employeeId: string, year: number, input: Deductions): Promise<string> {
+  const { data, error } = await (supabase as any).from("year_end_settlements")
+    .upsert({ company_id: companyId, employee_id: employeeId, year, input, status: "submitted" }, { onConflict: "employee_id,year" }).select("id");
+  if (error) throw error;
+  if (!data?.length) throw new Error("저장하지 못했습니다(권한 또는 확정된 정산)");
+  return data[0].id as string;
+}
+
+/** 이 달 지급분에 넣을 중도 퇴사 정산(확정본) */
+export async function listResignSettled(companyId: string, month: string): Promise<ConfirmedSettlement[]> {
+  return (logRead("year-end:resign", await (supabase as any).from("year_end_settlements").select("id, employee_id, result, confirmed_at")
+    .eq("company_id", companyId).eq("year", Number(month.slice(0, 4))).eq("status", "confirmed")
+    .eq("result->>kind", "resign").eq("result->>settleMonth", month).limit(2000)) || []) as ConfirmedSettlement[];
+}

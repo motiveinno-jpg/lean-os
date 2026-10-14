@@ -15,9 +15,13 @@ import type { PdfTarget } from "@/lib/tax-forms/hometax-pdf";
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 type Key = keyof Deductions;
 
-export function YearEndFormDialog({ title, year, initial, payroll, readOnly, onClose, onSave, footer }: {
+export function YearEndFormDialog({ title, year, initial, payroll, readOnly, onClose, onSave, footer, labels, notice }: {
   title: string; year: number; initial: Deductions; payroll: PayrollSummary | undefined; readOnly?: boolean;
   onClose: () => void; onSave?: (d: Deductions, submit: boolean) => Promise<void>; footer?: ReactNode;
+  /** 버튼 이름 — 기본 '임시 저장'·'제출'. 담당자가 쓰는 중도 퇴사 정산은 '저장'·'저장하고 확정' */
+  labels?: { draft: string; submit: string };
+  /** 칸 위 안내 한 줄(중도 퇴사 정산의 공제 범위 등) */
+  notice?: ReactNode;
 }) {
   const [pdfOpen, setPdfOpen] = useState(false);
   useModalKeys(!pdfOpen, onClose);
@@ -57,6 +61,7 @@ export function YearEndFormDialog({ title, year, initial, payroll, readOnly, onC
       <div className="rtf-form ye-form" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
         <div className="rtf-drill-head ye-form-head"><b>{title}</b><span>{year}년 귀속 · 규칙 {RULE_YEAR}년 귀속 기준 · 홈택스 간소화 자료 금액을 옮겨 적거나 PDF를 불러오세요</span>
           {!readOnly && onSave && <button type="button" className="btn-secondary btn-sm" onClick={() => setPdfOpen(true)}>간소화 PDF 불러오기</button>}</div>
+        {notice && <p className="rtf-legend vr-warn">{notice}</p>}
         <div className="ye-body">
           <div className="ye-fields">
             <h4>부양가족 (본인 제외)</h4>
@@ -125,8 +130,8 @@ export function YearEndFormDialog({ title, year, initial, payroll, readOnly, onC
           {footer}
           <button type="button" className="btn-secondary btn-sm" onClick={onClose} disabled={busy}>닫기</button>
           {!readOnly && onSave && <>
-            <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => void save(false)}>임시 저장</button>
-            <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void save(true)}>{busy ? "저장 중…" : "제출"}</button>
+            <button type="button" className="btn-secondary btn-sm" disabled={busy} onClick={() => void save(false)}>{labels?.draft || "임시 저장"}</button>
+            <button type="button" className="btn-primary btn-sm" disabled={busy} onClick={() => void save(true)}>{busy ? "저장 중…" : labels?.submit || "제출"}</button>
           </>}
         </div>
       </div>
