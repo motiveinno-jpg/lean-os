@@ -1345,8 +1345,8 @@ thead th { white-space: nowrap; word-break: keep-all; }
 .rule-row { @apply flex items-center justify-between px-4 py-3; }
 .bank-account-filter-bar { @apply flex flex-wrap items-center gap-2 mb-3 p-3 bg-[var(--bg-surface)] rounded-xl; }
 .bank-status-filter-pills { @apply flex items-center gap-2 mb-3; }
-.bank-tx-list-card { @apply overflow-hidden flex flex-col max-h-[calc(100vh-210px)] min-h-[440px]; }
-.bank-tx-sort-toolbar { @apply shrink-0 flex items-center gap-2 px-3 pt-3 pb-2 text-xs border-b border-[var(--border)]; }
+.bank-tx-list-card { @apply overflow-hidden flex flex-col max-h-[calc(100vh-300px)] min-h-[400px]; } /* 위에 '통합됐습니다' 안내 줄이 생긴 뒤 210 으로는 상자가 사이드바 끝선 밖으로 88px 나가 문서가 세로로 밀렸다 (2026-10-14) */
+.bank-tx-sort-toolbar { @apply shrink-0 flex flex-wrap items-center gap-2 px-3 pt-3 pb-2 text-xs border-b border-[var(--border)]; } /* 휴대폰 폭에서 검색칸·AI 추천 버튼이 오른쪽 밖으로 나갔다 — 줄바꿈 */
 .tx-inline-search { @apply px-2.5 py-1 rounded-lg text-xs bg-[var(--bg)] border border-[var(--border)] w-36 focus:border-[var(--primary)]/60 focus:outline-none; }
 .ai-suggest-btn { @apply inline-flex items-center gap-1 whitespace-nowrap disabled:opacity-50; }
 .bank-tx-row { @apply p-4 transition-all duration-200 hover:shadow-md; }
@@ -4897,7 +4897,7 @@ table.pnl-drill-table { min-width: 760px; }
 .account-chip-footer-btn { @apply flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] py-1.5 text-[12px] font-semibold text-[var(--text)] transition hover:bg-[var(--bg-surface)]; }
 .account-chip-footer-btn.is-danger { @apply text-[var(--danger)] border-[var(--danger)]/30 hover:bg-[var(--danger)]/10; }
 /*   이름·상태 칸은 폭 고정 — 글자 길이를 따라가면 상태를 바꿀 때마다 머리 줄이 흔들린다 */
-.account-chip-who { @apply hidden md:block w-[110px] text-left; }
+.account-chip-who { @apply hidden xl:block w-[110px] text-left; } /* 1024 폭에서 머리줄 오른쪽 끝(이름 칩)이 화면 밖으로 잘렸다 — 1280 이상에서만 이름, 그 아래는 얼굴만 (2026-10-14 전 화면 점검) */
 .account-chip-who-name { @apply block text-xs font-bold text-[var(--text)] leading-4 truncate; }
 .account-chip-who-sub { @apply block text-[10px] text-[var(--text-dim)] leading-3 truncate; }
 /* 내 상태 (2026-09-04) — 계정 칩·팝오버·메신저가 같은 점(.presence-dot) */
@@ -9456,7 +9456,7 @@ table.table-inv-ch-ship { min-width: 1480px; }
 .app-zoom .inv-modal-box { padding-bottom: 0; }
 .app-zoom .inv-modal-box > .inv-modal-actions { @apply sticky -mx-5 border-t border-[var(--border)] bg-[var(--bg-card)] px-5 py-3; bottom: 0; }   /* 저장·닫기 줄은 상자 바닥에 붙어 항상 보인다 */   /* fixed inset-0 이 zoom 배로 늘어나 팝업 아래가 잘려 보였다 */   /* 메신저 상자 끝선 = 사이드바 끝선 (2026-08-27) */
 .app-zoom .vault-file-panel > .qk-screen { height: calc(100vh / var(--app-zoom) - 380px); }
-.app-zoom .bank-tx-list-card { max-height: calc(100vh / var(--app-zoom) - 210px); }
+.app-zoom .bank-tx-list-card { max-height: calc(100vh / var(--app-zoom) - 300px); }
 .app-zoom .menu-guide-drawer { height: calc(100dvh / var(--app-zoom)); }
 .app-zoom .sidebar-mobile-drawer { height: calc(100dvh / var(--app-zoom)); }
 

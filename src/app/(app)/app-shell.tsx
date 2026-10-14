@@ -415,7 +415,7 @@ function AppContent({ children }: { children: React.ReactNode }) {
         {/* 검색 필 — 데스크톱은 pill, 모바일은 아이콘 */}
         <button
           onClick={() => openGlobalSearch()}
-          className="hidden md:flex items-center gap-2 w-56 lg:w-72 px-3.5 py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text-dim)] hover:border-[var(--primary)] hover:text-[var(--text-muted)] transition shrink-0"
+          className="hidden xl:flex items-center gap-2 w-72 px-3.5 py-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-xs text-[var(--text-dim)] hover:border-[var(--primary)] hover:text-[var(--text-muted)] transition shrink-0"
           aria-label="검색"
         >
           <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -426,7 +426,8 @@ function AppContent({ children }: { children: React.ReactNode }) {
         </button>
         <button
           onClick={() => openGlobalSearch()}
-          className="md:hidden p-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] shrink-0"
+          //   1280 아래는 검색을 동그란 단추로 — 1024 폭에서 긴 검색칸 때문에 화면 제목이 '자…'로 줄고 이름 칩이 밖으로 잘렸다(2026-10-14)
+          className="xl:hidden p-2 rounded-full bg-[var(--bg-card)] border border-[var(--border)] text-[var(--text-muted)] shrink-0"
           aria-label="검색"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

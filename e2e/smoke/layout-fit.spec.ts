@@ -84,3 +84,44 @@ for (const vp of [{ name: "작은 창", width: 820, height: 600 }, { name: "휴�
     }
   });
 }
+
+//   일반 화면(작은 창이 아닌 보통 접속)에서 화면이 옆으로 밀리거나 칸·단추가 화면 밖으로 나간 것.
+//   1024(작은 노트북) 머리줄 이름 칩, 휴대폰 자동 분류 툴바가 밖으로 나가 있던 것을 2026-10-14 전 화면 점검에서 찾았다.
+async function pageOverflow(page: Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const vw = innerWidth, de = document.documentElement, bad: string[] = [];
+    if (de.scrollWidth > vw + 2) bad.push(`화면이 옆으로 ${de.scrollWidth - vw}px 밀림`);
+    const inHScroller = (el: Element) => { for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) { const cs = getComputedStyle(a); if (/(auto|scroll)/.test(cs.overflowX) && a.scrollWidth > a.clientWidth + 1) return true; } return false; };
+    const outside = (x: Element | null) => { if (!x) return false; const q = x.getBoundingClientRect(); return q.right > vw + 2 || q.left < -2; };
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>("main *, header *"))) {
+      if (el.closest(".menu-guide-drawer")) continue;   // 닫힌 메뉴 가이드 서랍은 일부러 화면 밖
+      const cs = getComputedStyle(el);
+      if (cs.display === "none" || cs.visibility === "hidden" || cs.position === "fixed") continue;
+      const r = el.getBoundingClientRect();
+      if (r.width < 8 || r.height < 8) continue;
+      if (outside(el) && !inHScroller(el) && !outside(el.parentElement)) {
+        bad.push(`${el.tagName.toLowerCase()}.${String(el.className).split(" ").filter(Boolean).slice(0, 2).join(".")} [${Math.round(r.left)}→${Math.round(r.right)}] / 폭 ${vw}`);
+      }
+      if (bad.length > 6) break;
+    }
+    return bad;
+  });
+}
+
+for (const vp of [{ name: "작은 노트북", width: 1024, height: 768 }, { name: "휴대폰", width: 390, height: 844 }]) {
+  test.describe(`떠서 열리는 칸이 화면 안에 — 일반 화면 ${vp.name} ${vp.width}`, () => {
+    test.use({ viewport: { width: vp.width, height: vp.height } });
+    for (const href of sidebarRoutes()) {
+      test(`일반 ${href}`, async ({ page }) => {
+        await openPage(page, href);
+        //   재는 도중 화면이 다른 주소로 넘어가면(리다이렉트) 자리 잡을 때까지 기다렸다 다시 잰다
+        const measure = async () => pageOverflow(page).catch(async () => {
+          await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {});
+          await page.waitForTimeout(800);
+          return pageOverflow(page);
+        });
+        expect(await measure(), "화면 밖으로 나간 칸·단추").toEqual([]);
+      });
+    }
+  });
+}

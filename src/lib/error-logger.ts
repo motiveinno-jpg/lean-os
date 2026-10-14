@@ -491,6 +491,10 @@ export async function logError(params: {
     if (/lock:sb-.+-auth-token/i.test(message)) return;
     if (/Navigator LockManager/i.test(message)) return;
     if (/ResizeObserver loop/i.test(message)) return;
+    //   사용자 PC 의 브라우저 확장 프로그램이 낸 오류 — 우리 코드가 아니다. 한 사람의 확장 하나가 이틀 새 155건을
+    //   '알림 화면 오류'로 쌓았다(chrome-extension://…/executors/200.js · reading 'M_ID', 2026-10-07).
+    const origin = `${params.stack || ""} ${String((params.context as { filename?: string } | undefined)?.filename || "")}`;
+    if (/(chrome|moz|safari-web|safari)-extension:\/\//i.test(origin)) return;
     // 개발 서버(localhost)에서 난 에러는 운영 신호가 아니다 — 로컬 dev 가 운영 DB를 보고 있으면
     //   작업 중인 코드의 에러까지 운영자 대시보드에 쌓인다 (이미 처리된 게 계속 뜬다).
     if (typeof window !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)) return;

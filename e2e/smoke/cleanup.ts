@@ -21,6 +21,9 @@ export async function cleanupSmokeData() {
   for (const f of [...folders].sort((a, b) => depth(b.id) - depth(a.id))) await rest(`document_folders?id=eq.${f.id}`, { method: "DELETE" });
   // 거래처
   await rest(`partners?company_id=eq.${QA_COMPANY}&name=like.${SMOKE_TAG}*`, { method: "DELETE" });
+  //   거래처 중복 거절 시험은 일부러 막히는 저장이라 화면이 오류 기록에 남긴다 — 점검이 만든 그 기록만 지운다
+  //   (안 지우면 매 배포마다 운영자 에러 페이지·아침 메일에 '정상 차단' 소음이 쌓인다)
+  await rest(`error_logs?message=like.*${encodeURIComponent(`"${SMOKE_TAG} 거래처`)}*`, { method: "DELETE" });
   // MCP 점검용 OAuth 클라이언트(토큰은 연쇄 삭제)
   await rest(`oauth_clients?client_id=like.smoke-*`, { method: "DELETE" });
 }

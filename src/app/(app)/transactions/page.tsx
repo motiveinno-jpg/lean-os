@@ -1546,7 +1546,7 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                           onChange={e => { const next = new Set(selectedIds); if (e.target.checked) next.add(tx.id); else next.delete(tx.id); setSelectedIds(next); }}
                           className="accent-[var(--primary)] shrink-0" />
                       )}
-                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${isIncome ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
+                      <div className={`shrink-0 w-10 h-10 rounded-xl hidden sm:flex items-center justify-center ${isIncome ? 'bg-[var(--success)]/10 text-[var(--success)]' : 'bg-[var(--danger)]/10 text-[var(--danger)]'}`}>
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isIncome ? 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' : 'M13 17h8m0 0v-8m0 8l-8-8-4 4-6-6'} />
                         </svg>
@@ -1581,7 +1581,8 @@ function TransactionsView({ initialTab = 'inbox', visibleTabs = BANK_TABS }: Tra
                         </label>
                       </div>
                       <div className="shrink-0 text-right">
-                        <p className={`text-base font-bold mono-number ${isIncome ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
+                        {/*   휴대폰 폭: 입출 아이콘을 접고 금액을 한 단계 작게 — 거래처명이 '정.' 한 글자로 잘리던 것 (2026-10-14 전 화면 점검) */}
+                        <p className={`text-sm sm:text-base font-bold mono-number ${isIncome ? 'text-[var(--success)]' : 'text-[var(--text)]'}`}>
                           {isIncome ? '+' : '-'}₩{Math.abs(Number(tx.amount)).toLocaleString()}
                         </p>
                         {tab !== 'inbox' && <p className="text-[10px] text-[var(--text-dim)] mono-number mt-0.5 hidden md:block">잔액 ₩{Number(tx.balance_after || 0).toLocaleString()}</p>}
