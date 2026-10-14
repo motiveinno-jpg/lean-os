@@ -63,7 +63,7 @@ export async function lockBytes(plain: ArrayBuffer, password: string, mime: stri
 export async function unlockBytes(locked: ArrayBuffer, password: string, iterations: number = LOCK_ITERATIONS): Promise<ArrayBuffer> {
   const bytes = new Uint8Array(locked);
   if (bytes.length < HEAD_LEN + 16 || new TextDecoder().decode(bytes.subarray(0, LOCK_MAGIC.length)) !== LOCK_MAGIC) {
-    throw new Error("잠긴 파일 형식이 아닙니다. 파일이 손상됐을 수 있습니다.");
+    throw new Error("암호화된 파일 형식이 아닙니다. 파일이 손상됐을 수 있습니다.");
   }
   const salt = bytes.slice(LOCK_MAGIC.length, LOCK_MAGIC.length + SALT_LEN);
   const iv = bytes.slice(LOCK_MAGIC.length + SALT_LEN, HEAD_LEN);

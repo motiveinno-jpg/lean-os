@@ -7,7 +7,7 @@ import { validateFileMeta } from "@/lib/file-rules";
 import { randomBytes } from "node:crypto";
 
 //   파일보관함 잠금(브라우저 암호화) — 비밀번호는 서버에 없어 AI 도 열 수 없다(src/lib/vault-crypto.ts)
-const LOCKED_MSG = "비밀번호로 잠긴 파일이라 내용을 읽거나 내려받을 수 없습니다. 오너뷰 파일보관함에서 비밀번호를 넣어 여세요.";
+const LOCKED_MSG = "비밀번호로 암호화된 파일이라 내용을 읽거나 내려받을 수 없습니다. 오너뷰 파일보관함에서 비밀번호를 넣어 여세요.";
 const MAX_BYTES = 100 * 1024 * 1024;      // 글자 뽑기는 100MB 까지(함수 300초 안). 원본 내려받기(download_vault_files)는 크기 제한 없음
 const PAGE_CHARS = 60_000;                // 한 번에 돌려주는 글자 수 — 긴 문서는 offset 으로 이어 읽는다
 const IMAGE_EXTS: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" };
@@ -33,7 +33,7 @@ export const VAULT_TOOLS = [
     name: "read_vault_file",
     description:
       "파일보관함 파일 하나의 내용을 글자로 읽는다(HWP·HWPX·PDF·DOCX·XLSX·XLS·CSV·TXT·MD·JSON). 이미지(PNG·JPG·GIF·WEBP)는 그림으로 준다. " +
-      "긴 문서는 한 번에 6만 자까지 — 결과의 이어 읽기 offset 을 넘기면 이어서 읽는다. 100MB 까지. 스캔 PDF(글자 없는 그림)는 글자를 못 뽑는다. 목록에서 locked: true 인 파일은 비밀번호로 잠겨 읽을 수 없다. 원본 파일이 필요하면 download_vault_files.",
+      "긴 문서는 한 번에 6만 자까지 — 결과의 이어 읽기 offset 을 넘기면 이어서 읽는다. 100MB 까지. 스캔 PDF(글자 없는 그림)는 글자를 못 뽑는다. 목록에서 locked: true 인 파일은 비밀번호로 암호화돼 읽을 수 없다. 원본 파일이 필요하면 download_vault_files.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {

@@ -33,7 +33,7 @@ describe("vault-crypto", () => {
   });
 
   it("잠긴 파일이 아니면 형식 오류", async () => {
-    await expect(unlockBytes(enc("plain file contents here....................."), "password-1")).rejects.toThrow("잠긴 파일 형식");
+    await expect(unlockBytes(enc("plain file contents here....................."), "password-1")).rejects.toThrow("암호화된 파일 형식");
   });
 
   it("비밀번호 규칙", () => {

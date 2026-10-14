@@ -262,7 +262,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
     setUpProg(null);
     refreshFiles();
     if (failed.length) toast(`${failed.length}개 파일을 올리지 못했습니다: ${failed.slice(0, 3).join(" / ")}${failed.length > 3 ? " 외" : ""}`, "error");
-    else toast(lockPassword ? `${files.length}개 파일을 잠가서 올렸습니다` : `${files.length}개 파일을 올렸습니다`, "success");
+    else toast(lockPassword ? `${files.length}개 파일을 암호화해서 올렸습니다` : `${files.length}개 파일을 올렸습니다`, "success");
   };
 
   // ── 잠금 — 잠긴 파일은 누르면 비밀번호부터 묻는다 ──
@@ -288,11 +288,11 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
       } else if (pwAsk.mode === "lock") {
         const r = await lockVaultFile(pwAsk.file.id, pw, { companyId, userId });
         setPwAsk(null); refreshFiles(); qc.invalidateQueries({ queryKey: ["file-versions"] });
-        toast(r.locked > 1 ? `잠갔습니다 (지난 판 포함 ${r.locked}개)` : "잠갔습니다", "success");
+        toast(r.locked > 1 ? `암호화했습니다 (지난 판 포함 ${r.locked}개)` : "암호화했습니다", "success");
       } else {
         const r = await unlockVaultFile(pwAsk.file.id, pw, { companyId, userId });
         setPwAsk(null); refreshFiles(); qc.invalidateQueries({ queryKey: ["file-versions"] });
-        toast(r.wrong > 0 ? `잠금을 풀었습니다. 비밀번호가 다른 지난 판 ${r.wrong}개는 잠긴 채로 남았습니다` : "잠금을 풀었습니다", r.wrong > 0 ? "info" : "success");
+        toast(r.wrong > 0 ? `암호화를 해제했습니다. 비밀번호가 다른 지난 판 ${r.wrong}개는 암호화된 채로 남았습니다` : "암호화를 해제했습니다", r.wrong > 0 ? "info" : "success");
       }
     } catch (e) {
       const m = String((e as Error)?.message || "");
@@ -378,15 +378,15 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
         {menuFor === key && (
           <div className="vx-menu" role="menu">
             {f.encryption
-              ? <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "unlock", file: f })}>잠금 풀기</button>
-              : <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "lock", file: f })}>비밀번호로 잠그기</button>}
+              ? <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "unlock", file: f })}>암호화 해제</button>
+              : <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "lock", file: f })}>암호화하기</button>}
           </div>
         )}
       </div>
     );
   };
   const lockMark = (f: { encryption?: unknown | null }) => f.encryption
-    ? <span className="vx-lock-mark" title="잠긴 파일 · 비밀번호를 알아야 열립니다"><Lock size={13} strokeWidth={2.4} aria-label="잠김" /></span>
+    ? <span className="vx-lock-mark" title="암호화된 파일 · 비밀번호를 알아야 열립니다"><Lock size={13} strokeWidth={2.4} aria-label="암호화됨" /></span>
     : null;
 
   const verLabel = (f: VFile) => Number(f.version || 1) > 1
@@ -486,12 +486,12 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
             onClick={() => fileInputRef.current?.click()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>올리기
           </button>
-          <button type="button" className="btn-secondary btn-sm vx-tool-btn" title="비밀번호를 아는 사람만 열 수 있게 잠가서 올립니다"
+          <button type="button" className="btn-secondary btn-sm vx-tool-btn" title="비밀번호를 아는 사람만 열 수 있게 암호화해서 올립니다"
             onClick={() => lockInputRef.current?.click()}>
-            <Lock size={15} strokeWidth={2.4} />잠가서 올리기
+            <Lock size={15} strokeWidth={2.4} />암호화해서 올리기
           </button>
           <input ref={fileInputRef} type="file" multiple hidden aria-label="올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; void uploadMany(l); }} />
-          <input ref={lockInputRef} type="file" multiple hidden aria-label="잠가서 올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; if (l.length) askPw({ mode: "upload", files: l }); }} />
+          <input ref={lockInputRef} type="file" multiple hidden aria-label="암호화해서 올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; if (l.length) askPw({ mode: "upload", files: l }); }} />
         </div>
 
         <div className={dragOver ? "vx-box vx-box-drop" : "vx-box"}
@@ -600,7 +600,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                   const on = selectedIds.has(f.id);
                   return (
                     <div key={f.id} className={on ? "vx-card vx-card-file vx-card-on" : "vx-card vx-card-file"}
-                      onClick={() => getFile(f)} title={f.encryption ? `${f.file_name} · 잠긴 파일 · 눌러서 비밀번호 입력` : `${f.file_name} · 눌러서 내려받기`}>
+                      onClick={() => getFile(f)} title={f.encryption ? `${f.file_name} · 암호화된 파일 · 눌러서 비밀번호 입력` : `${f.file_name} · 눌러서 내려받기`}>
                       {mine && (
                         <button type="button" aria-label="선택" onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}
                           className={on ? "collect-chk collect-chk-on vx-card-chk" : "collect-chk vx-card-chk"}>{on ? "✓" : ""}</button>
@@ -711,17 +711,17 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
       {/* ── 잠금 비밀번호 — 비밀번호는 이 창 밖으로 나가지 않는다(저장 안 함) ── */}
       {pwAsk && (
         <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget && !pwBusy) setPwAsk(null); }}>
-          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="파일 잠금 비밀번호">
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="파일 암호화 비밀번호">
             <h3 className="phv3-modal-title">
-              {pwAsk.mode === "upload" ? `잠가서 올리기 · 파일 ${pwAsk.files.length}개`
+              {pwAsk.mode === "upload" ? `암호화해서 올리기 · 파일 ${pwAsk.files.length}개`
                 : pwAsk.mode === "open" ? `"${pwAsk.file.file_name}" 열기`
-                : pwAsk.mode === "lock" ? `"${pwAsk.file.file_name}" 잠그기`
-                : `"${pwAsk.file.file_name}" 잠금 풀기`}
+                : pwAsk.mode === "lock" ? `"${pwAsk.file.file_name}" 암호화하기`
+                : `"${pwAsk.file.file_name}" 암호화 해제`}
             </h3>
             <p className="phv3-modal-desc">
               {pwAsk.mode === "open" ? "비밀번호를 넣으면 이 브라우저 안에서 풀어서 내려받습니다."
-                : pwAsk.mode === "unlock" ? "잠금을 풀면 원본으로 다시 저장돼, 이 폴더를 볼 수 있는 사람은 누구나 열 수 있습니다. 지난 판도 같이 풀립니다."
-                : `이 비밀번호를 아는 사람만 열 수 있습니다.${pwAsk.mode === "lock" && Number(pwAsk.file.version || 1) > 1 ? " 지난 판도 같이 잠깁니다." : ""} 파일 이름·크기는 목록에 그대로 보입니다.`}
+                : pwAsk.mode === "unlock" ? "암호화를 해제하면 원본으로 다시 저장돼, 이 폴더를 볼 수 있는 사람은 누구나 열 수 있습니다. 지난 판도 같이 해제됩니다."
+                : `이 비밀번호를 아는 사람만 열 수 있습니다.${pwAsk.mode === "lock" && Number(pwAsk.file.version || 1) > 1 ? " 지난 판도 같이 암호화됩니다." : ""} 파일 이름·크기는 목록에 그대로 보입니다.`}
             </p>
             {needsNewPw && (
               <div className="vx-pw-warn">
@@ -739,7 +739,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               <div className="phv3-modal-actions">
                 <button type="button" className="btn-secondary btn-sm" disabled={pwBusy} onClick={() => setPwAsk(null)}>취소</button>
                 <button type="submit" className="btn-primary btn-sm" disabled={pwBusy}>
-                  {pwBusy ? "처리 중…" : pwAsk.mode === "upload" ? "잠가서 올리기" : pwAsk.mode === "open" ? "열기" : pwAsk.mode === "lock" ? "잠그기" : "잠금 풀기"}
+                  {pwBusy ? "처리 중…" : pwAsk.mode === "upload" ? "암호화해서 올리기" : pwAsk.mode === "open" ? "열기" : pwAsk.mode === "lock" ? "암호화하기" : "암호화 해제"}
                 </button>
               </div>
             </form>

@@ -552,7 +552,7 @@ export async function unlockVaultFile(fileId: string, password: string, ctx: { c
 /** 잠긴 파일을 비밀번호로 풀어 원래 이름으로 내려받는다(풀린 내용은 이 브라우저 안에만). */
 export async function downloadLockedFile(row: { id: string; file_name: string }, password: string): Promise<void> {
   const [r] = (await lockFamily(row.id)).filter((x) => x.id === row.id);
-  if (!r?.storage_path || !r.encryption) throw new Error("잠긴 파일을 찾지 못했습니다.");
+  if (!r?.storage_path || !r.encryption) throw new Error("암호화된 파일을 찾지 못했습니다.");
   const enc = await downloadObject(r.bucket || "document-files", r.storage_path);
   const plain = await unlockBytes(enc, password, r.encryption.iter);
   const url = URL.createObjectURL(new Blob([plain], { type: r.encryption.mime || "application/octet-stream" }));

@@ -26,16 +26,16 @@ test("파일보관함 — 새 폴더(Enter) → 들어가기 → 파일 올리�
   await expect(page.locator(".vx-row", { hasText: `${SMOKE_TAG}-test.txt` }), "올린 파일이 폴더 안에 보여야 한다").toBeVisible({ timeout: 30_000 });
 });
 
-test("파일보관함 잠금 — 잠가서 올리기 → 저장본은 원문 아님 → 틀린/맞는 비밀번호 → 잠금 풀기", async ({ page }) => {
+test("파일보관함 암호화 — 암호화해서 올리기 → 저장본은 원문 아님 → 틀린/맞는 비밀번호 → 암호화 해제", async ({ page }) => {
   const info = await openPage(page, "/documents/");
   await expectHealthy(page, "/documents/", info);
   const name = `${SMOKE_TAG}-lock-${stamp()}.txt`;
   const secret = `SMOKE-SECRET-${Date.now()}`;
   const pw = "smoke-lock-pass-1";
-  await page.getByLabel("잠가서 올릴 파일 고르기").setInputFiles({ name, mimeType: "text/plain", buffer: Buffer.from(secret) });
+  await page.getByLabel("암호화해서 올릴 파일 고르기").setInputFiles({ name, mimeType: "text/plain", buffer: Buffer.from(secret) });
   await page.getByPlaceholder("비밀번호 (8자 이상)").fill(pw);
   await page.getByPlaceholder("비밀번호 다시 입력").fill(pw);
-  await page.getByRole("button", { name: "잠가서 올리기", exact: true }).last().click();
+  await page.getByRole("button", { name: "암호화해서 올리기", exact: true }).last().click();
   const row = page.locator(".vx-row", { hasText: name });
   await expect(row.locator(".vx-lock-mark"), "잠긴 파일 표시").toBeVisible({ timeout: 30_000 });
 
@@ -59,9 +59,9 @@ test("파일보관함 잠금 — 잠가서 올리기 → 저장본은 원문 아
 
   //   잠금 풀기 → 표시가 사라지고 저장본이 원문으로
   await row.getByRole("button", { name: `${name} 파일 메뉴` }).click();
-  await page.getByRole("menuitem", { name: "잠금 풀기" }).click();
+  await page.getByRole("menuitem", { name: "암호화 해제" }).click();
   await page.getByPlaceholder("비밀번호", { exact: true }).fill(pw);
-  await page.getByRole("button", { name: "잠금 풀기", exact: true }).last().click();
+  await page.getByRole("button", { name: "암호화 해제", exact: true }).last().click();
   await expect(row.locator(".vx-lock-mark"), "잠금 표시가 사라져야 한다").toHaveCount(0, { timeout: 30_000 });
   const [after] = await rest(`document_files?id=eq.${rec.id}&select=storage_path,encryption`);
   expect(after.encryption, "잠금 정보가 비워져야 한다").toBeNull();
