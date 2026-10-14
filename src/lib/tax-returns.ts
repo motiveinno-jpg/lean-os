@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { logRead } from "@/lib/log-read";
 import type { FormFigures } from "@/lib/tax-forms/vat-form";
 
-export type TaxReturnKind = "vat" | "wht" | "simple_statement" | "annual_statement" | "daily_work_report" | "insurance_report";
+export type TaxReturnKind = "vat" | "wht" | "simple_statement" | "annual_statement" | "daily_work_report" | "insurance_report" | "cit";
 export type TaxReturn = {
   id: string; company_id: string; kind: TaxReturnKind; period_key: string; revision: number;
   status: "closed" | "cancelled";

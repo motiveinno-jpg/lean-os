@@ -37,6 +37,7 @@ import { TaxReturnSheet } from "@/components/tax-return-sheet";
 import { listTaxReturns, latestClosed } from "@/lib/tax-returns";
 import type { FormFigures } from "@/lib/tax-forms/vat-form";
 import { computeWhtForm } from "@/lib/tax-forms/wht-form";
+import { citOf, computeCitForm, CIT_LINES } from "@/lib/tax-forms/cit-form";
 import { toWhtRows, aggOf, WHT_SELECT, type WhtRow } from "@/lib/tax-forms/wht-rows";
 import { useStatementsTab } from "./_components/use-statements-tab";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
@@ -86,28 +87,6 @@ function DueDate({ d, done, doneInfo, onToggle }: { d: string; done?: boolean; d
   </>);
 }
 /** 반기의 여섯 달 (h=1 → 01~06, h=2 → 07~12) */
-//   법인세 세율 구간 (2023년 개정 후) — 결정 104. 지방소득세는 산출세액의 10%(구간세율 0.9~2.4%와 같다).
-//   ⚠️ 세율이 바뀌면 여기 상수를 고친다 — 화면에 '2026년 세율 기준'을 적어 어긋남이 보이게 한다.
-const CIT_BRACKETS = [
-  { upTo: 200_000_000, rate: 0.09, label: "2억 이하" },
-  { upTo: 20_000_000_000, rate: 0.19, label: "2억 초과 ~ 200억" },
-  { upTo: 300_000_000_000, rate: 0.21, label: "200억 초과 ~ 3,000억" },
-  { upTo: Infinity, rate: 0.24, label: "3,000억 초과" },
-] as const;
-function citOf(base: number): { brackets: { label: string; rate: number; amt: number; tax: number }[]; total: number } {
-  if (base <= 0) return { brackets: [], total: 0 };
-  const brackets: { label: string; rate: number; amt: number; tax: number }[] = [];
-  let prev = 0, total = 0;
-  for (const b of CIT_BRACKETS) {
-    const amt = Math.min(base, b.upTo) - prev;
-    if (amt <= 0) break;
-    const tax = Math.floor(amt * b.rate);
-    brackets.push({ label: b.label, rate: b.rate, amt, tax });
-    total += tax;
-    prev = b.upTo;
-  }
-  return { brackets, total };
-}
 
 
 export default function TaxFilingPage() {
@@ -218,8 +197,34 @@ export default function TaxFilingPage() {
     const base = income + ent.excess;
     const c = citOf(base);
     const local = Math.floor(c.total * 0.1);
-    return { income, base, entLines, sales, ent, ...c, local, sum: c.total + local };
+    return { income, base, entLines, sales, ent, ...c, local, sum: c.total + local, taxExpense, net: Math.round(citStmt?.totals.ytdNet || 0) };
   }, [citStmt, citSme]);
+  //   ── 법인세 신고본 마감 (2026-10-14 세무 2차 후속) — 세무사가 확정한 숫자를 남긴다. 오너뷰 계산은 기본값.
+  //   전기 신고본에서: 이월결손금 잔액(LOSS_BAL) → 올해 공제 한도·전기 잔액, 중간예납 기준액(NEXT_INTERIM) → 올해 기납부 중간예납
+  const { data: prevCitReturns = [] } = useQuery({
+    queryKey: ["tax-returns", companyId, "cit", String(year - 1)], enabled: !!companyId && tab === "cit",
+    queryFn: () => listTaxReturns(companyId!, "cit", String(year - 1)),
+  });
+  const prevCit = latestClosed(prevCitReturns);
+  const priorLoss = Math.max(0, Math.round(Number(prevCit?.figures?.LOSS_BAL?.amount || 0)));
+  const priorInterim = Math.max(0, Math.round(Number(prevCit?.figures?.NEXT_INTERIM?.amount || 0)));
+  const citDefaults = useMemo<FormFigures>(() => {
+    const add = Math.round(cit.taxExpense + cit.ent.excess);
+    const m: FormFigures = {};
+    if (add) m.ADD = { amount: add };
+    const inc = cit.net + add;
+    const loss = Math.min(priorLoss, Math.max(0, inc));
+    if (loss) m.LOSS = { amount: loss };
+    if (priorInterim) m.PRE_INTERIM = { amount: priorInterim };
+    return m;
+  }, [cit, priorLoss, priorInterim]);
+  const citNote = [
+    cit.taxExpense || cit.ent.excess ? `익금산입·손금불산입 기본값 = 법인세비용 ${won(cit.taxExpense)} + 기업업무추진비 한도초과 ${won(cit.ent.excess)}.` : "",
+    prevCit ? `${year - 1}년 신고본에서 이월결손금 잔액 ${won(priorLoss)}·중간예납 기준액 ${won(priorInterim)}을 가져왔습니다.` : `${year - 1}년 법인세 신고본이 없어 이월결손금·중간예납은 0에서 시작합니다(있으면 직접 넣으세요).`,
+    "세무사가 확정한 신고 숫자로 고친 뒤 마감하세요. 이월결손금 공제 한도는 중소기업 100%·일반 80% — 기본값은 100%입니다.",
+  ].filter(Boolean).join(" ");
+  const citCompute = useMemo(() => (m: FormFigures) => computeCitForm({ netIncome: cit.net, priorLoss }, m), [cit.net, priorLoss]);
+  const citSources = useMemo(() => ({ year: [String(year)] }), [year]);
   const [packBusy, setPackBusy] = useState(false);
 
   //   ── 전자신고 파일 베타 (세무 4차, 결정 106). feature_rollout 'tax_efile' 게이트: 모티브 먼저,
@@ -735,6 +740,12 @@ export default function TaxFilingPage() {
                     <b className="vr-warn"> 세무조정 전 근사치이며 확정 세액은 세무사가 계산합니다.</b>
                     {" 자료는 세무사 전달 패키지로 보냅니다."}
                   </p>
+                  {/*   신고서 · 마감 (2026-10-14) — 세무사가 확정한 숫자를 남기고, 이월결손금·중간예납 기준액을 다음 해로 넘긴다 */}
+                  <TaxReturnSheet layout="list" kind="cit" companyId={companyId} userId={userId} canWrite={canTaxWrite}
+                    periodKey={String(year)} title={`법인세 과세표준 및 세액신고 · ${year} 사업연도`}
+                    rows={CIT_LINES} cols={{ amount: "금액" }} noTotal totalKey="PAY"
+                    compute={citCompute} sources={citSources} loading={citLoading}
+                    defaultManual={citDefaults} defaultManualNote={citNote} />
                   <div className="pnl-grid2">
                     <div className="pnl-panel">
                       <h3>예상 법인세</h3><p title="2억 이하 9% · 200억 이하 19% · 3,000억 이하 21% · 초과 24%">2026년 세율 기준입니다.</p>

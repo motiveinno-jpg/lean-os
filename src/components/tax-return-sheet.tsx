@@ -24,7 +24,9 @@ const won = (n: unknown) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
 type Props = {
   /** list — 지급명세서처럼 사람마다 한 줄(2026-10-14 5단계). 칸 키 = rows[].key, 합계 키 = "total" */
   layout: "vat" | "wht" | "list";
-  rows?: { key: string; label: string; sub?: string }[];
+  rows?: { key: string; label: string; sub?: string; manual?: boolean }[];
+  /** list 에서 합계 줄을 붙이지 않는다(법인세 서식처럼 칸마다 뜻이 다를 때) · 마감 비교의 대표 세액 칸 */
+  noTotal?: boolean; totalKey?: string;
   cols?: { n?: string; amount: string; tax?: string };
   kind: TaxReturnKind;
   companyId: string | null;
@@ -83,9 +85,11 @@ export function TaxReturnSheet(p: Props) {
     }
     return { added, removed };
   }, [filed, p.sources]);
-  const totalKey = p.layout === "vat" ? "30" : p.layout === "wht" ? "A99" : "total";
-  const filedTax = Math.round(Number(filed?.figures?.[totalKey]?.tax || 0));
-  const nowTax = Math.round(Number(current[totalKey]?.tax || 0));
+  const totalKey = p.totalKey || (p.layout === "vat" ? "30" : p.layout === "wht" ? "A99" : "total");
+  //   대표 세액 — list 서식은 칸 하나(amount)만 쓰는 경우(법인세)가 있어 tax 가 없으면 amount
+  const pick = (f: FormFigures | undefined) => Math.round(Number(f?.[totalKey]?.tax ?? f?.[totalKey]?.amount ?? 0));
+  const filedTax = pick(filed?.figures);
+  const nowTax = pick(current);
   //   지급명세서(list)는 세액 증감과 상관없이 '수정 제출'이다 — 수정신고·경정청구는 신고서(부가세·원천세)에만 쓴다
   const revisedKind = !filed || !changed.length ? null : p.layout === "list" ? "수정 제출" : nowTax > filedTax ? "수정신고" : nowTax < filedTax ? "경정청구" : "수정신고(세액 같음)";
   const [compare, setCompare] = useState(true);
@@ -227,16 +231,18 @@ export function TaxReturnSheet(p: Props) {
   //   마감 시각은 한국 시간으로(DB 는 UTC)
   const listTable = () => {
     const cols = p.cols || { amount: "지급액", tax: "소득세" };
-    const list = [...(p.rows || []), { key: "total", label: "합계" }];
+    const list: { key: string; label: string; sub?: string; manual?: boolean }[] = [...(p.rows || []), ...(p.noTotal ? [] : [{ key: "total", label: "합계" }])];
     return (
       <table className="rtf-table">
         <thead><tr><th>구분</th>{cols.n && <th>{cols.n}</th>}<th>{cols.amount}</th>{cols.tax && <th>{cols.tax}</th>}</tr></thead>
         <tbody>
           {list.map((r) => (
-            <tr key={r.key} className={`${r.key === "total" ? "rtf-sum" : ""} ${filed && changed.includes(r.key) ? "rtf-row-chg" : ""}`}>
-              <td className="rtf-label">{r.label}{"sub" in r && r.sub ? <span className="rtf-src">{r.sub}</span> : null}</td>
+            <tr key={r.key} className={`${r.key === "total" || (p.noTotal && !r.manual && r.key !== "N") ? "rtf-sum" : ""} ${filed && changed.includes(r.key) ? "rtf-row-chg" : ""}`}>
+              <td className="rtf-label">{r.label}{r.sub ? <span className="rtf-src">{r.sub}</span> : null}{r.manual && <span className="rtf-src">직접 입력</span>}</td>
               {cols.n && <td className="rtf-num">{cellVal(r.key, "n")}</td>}
-              <td className="rtf-num">{cellVal(r.key, "amount")}</td>
+              <td className="rtf-num">{r.manual && p.canWrite
+                ? (showCompare ? <span><span className="rtf-orig">{won(filed!.figures?.[r.key]?.amount)}</span>{manualCell(r.key, "amount")}</span> : manualCell(r.key, "amount"))
+                : cellVal(r.key, "amount")}</td>
               {cols.tax && <td className="rtf-num">{cellVal(r.key, "tax")}</td>}
             </tr>
           ))}
