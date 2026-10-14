@@ -1,4 +1,5 @@
 "use client";
+import { ClosingAdjustDialog } from "@/components/closing-adjust-dialog";
 import { koFallback } from "@/lib/ko-label";
 import { MonthSelect } from "@/components/month-select";
 
@@ -96,6 +97,9 @@ export default function FinanceStatusPage() {
     } catch (e) { toast(friendlyError(e), "error"); }
     finally { setCloseBusy(null); }
   };
+  //   결산자료입력 (2026-10-14) — 대손충당금·선급/미지급·법인세비용 팝업. 만든 초안은 아래 목록에서 확정
+  const [adjust, setAdjust] = useState<null | "baddebt" | "accrual" | "cit">(null);
+  const closeAsof = (() => { const last = new Date(Number(closeMonth.slice(0, 4)), Number(closeMonth.slice(5, 7)), 0); return `${closeMonth}-${String(last.getDate()).padStart(2, "0")}`; })();
   const [tab, setTab] = useState<Tab>(() => { const q = searchParams?.get("tab"); return TABS.some(([k]) => k === q) ? (q as Tab) : "all"; });
   const [from, setFrom] = useState(() => defaultRange().from);   // 최근 1개월 — 이번 달 1일 기본값은 매달 초 이틀치만 보여 전부 0으로 읽혔다 (2026-09-03)
   const [to, setTo] = useState(todayKst);
@@ -441,8 +445,17 @@ export default function FinanceStatusPage() {
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("payroll")} title="그 달 발급된 급여명세 합계 · 차) 직원급여 / 대) 예수금·미지급금. 개인별 금액은 전표에 싣지 않습니다. 회사 부담 4대보험은 고지서 금액으로 일반전표에 따로 올립니다">{closeBusy === "payroll" ? "만드는 중…" : "급여 전표"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("depreciation")} title="등록된 고정자산의 그 달 감가상각 · 차) 감가상각비 / 대) 감가상각누계액, 자산별 줄">{closeBusy === "depreciation" ? "만드는 중…" : "감가상각"}</button>
                         <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => makeCloseDraft("retirement")} title="재직자 퇴직금 추계와 퇴직급여충당부채 잔액의 차액을 전표 초안으로 만듭니다">{closeBusy === "retirement" ? "만드는 중…" : "퇴직급여충당"}</button>
+                        {/*   결산자료입력 3종 (2026-10-14) — 주로 12월(연말) 결산 */}
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => setAdjust("baddebt")} title="외상매출금·받을어음·미수금 잔액 × 설정률 − 기존 대손충당금 · 차) 대손상각비 / 대) 대손충당금">대손충당금</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => setAdjust("accrual")} title="선급비용(미경과분)·미지급비용·미수수익·선수수익 — 줄마다 넣는다">선급·미지급</button>
+                        <button type="button" className="btn-secondary btn-sm" disabled={!!closeBusy} onClick={() => setAdjust("cit")} title="법인세 신고본(없으면 예상) 금액 · 차) 법인세비용 / 대) 선납세금·미지급법인세">법인세비용</button>
                       </div>
-                      <p className="inv-hint">계정은 회사설정의 생산 전표 계정을 따릅니다. 감가상각은 <Link href="/finance/assets" className="bz-link">고정자산</Link>에 등록된 자산으로 만듭니다.</p>
+                      <p className="inv-hint">계정은 회사설정의 생산 전표 계정을 따릅니다. 감가상각은 <Link href="/finance/assets" className="bz-link">고정자산</Link>에 등록된 자산으로 만듭니다.
+                        대손충당금·선급/미지급·법인세비용은 연말(12월) 결산 때 주로 씁니다 — 기준일은 고른 달의 말일. 외화환산은 아직 없습니다.</p>
+                      {adjust && companyId && (
+                        <ClosingAdjustDialog mode={adjust} companyId={companyId} asof={closeAsof} onClose={() => setAdjust(null)}
+                          onMade={(id) => { if (id) { const mStart = closeAsof.slice(0, 8) + "01"; setFrom((f) => (f > mStart ? mStart : f)); setTo((t) => (t < closeAsof ? closeAsof : t)); refetchEntries(); } }} />
+                      )}
                     </div>
                     <div className="pnl-panel">
                       <h3>전표 없는 증빙</h3><p>전표가 아직 없는 증빙입니다.</p>

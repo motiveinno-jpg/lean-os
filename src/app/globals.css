@@ -11630,3 +11630,10 @@ table.tir-items-table { min-width: 640px; }
 .vx-pw-form { @apply mt-3 flex flex-col gap-2; }
 .vx-pw-input { @apply w-full h-[38px] px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-sm text-[var(--text)] outline-none focus:border-[var(--primary)]; }
 .vx-pw-err { @apply text-[12.5px] font-medium text-[var(--danger)]; }
+/* 결산자료입력 — 선급·미지급 줄 (2026-10-14, components/closing-adjust-dialog.tsx) */
+.closing-accrual-rows { @apply flex flex-col gap-2; }
+.closing-accrual-row { @apply grid items-center gap-2; grid-template-columns: 150px minmax(140px, 1fr) 120px repeat(2, 130px) minmax(100px, 1fr) 100px auto; }
+@media (max-width: 760px) { .closing-accrual-row { grid-template-columns: 1fr 1fr; } }
+.closing-accrual-amt { @apply text-right text-xs text-[var(--text-muted)]; }
+.closing-adjust-wide { max-width: 1080px; }
+.closing-accrual-gap { @apply text-center text-[11px] text-[var(--text-dim)]; grid-column: span 2; }

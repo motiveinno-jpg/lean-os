@@ -20573,6 +20573,23 @@ export type Database = {
         }
         Returns: string
       }
+      make_accrual_voucher_draft: {
+        Args: {
+          p_asof: string
+          p_company: string
+          p_lines: Json
+          p_memo: string
+        }
+        Returns: string
+      }
+      make_baddebt_voucher_draft: {
+        Args: { p_asof: string; p_company: string; p_rate: number }
+        Returns: string
+      }
+      make_cit_expense_voucher_draft: {
+        Args: { p_amount: number; p_asof: string; p_company: string }
+        Returns: string
+      }
       make_cogs_voucher_draft: {
         Args: { p_company: string; p_from: string; p_to: string }
         Returns: string
