@@ -1,4 +1,5 @@
 "use client";
+import { YearEndReview } from "@/components/year-end-review";
 import { resolveSealUrl, sealAsDataUrl } from "@/lib/signatures";
 import { koFallback } from "@/lib/ko-label";
 import { appConfirm } from "@/components/global-confirm";
@@ -4542,6 +4543,9 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
   };
 
   return (
+    <>
+    {/*   연말정산 계산·확정 (2026-10-14 연말정산 3단계, 베타 — 게이트 꺼져 있으면 안 그린다) */}
+    {companyId && <YearEndReview companyId={companyId} employees={employees} />}
     <div className="certificate-yeartax-panel glass-card">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
@@ -4641,6 +4645,7 @@ function YearEndTaxSection({ employees, companyId }: { employees: any[]; company
         </ul>
       </div>
     </div>
+    </>
   );
 }
 

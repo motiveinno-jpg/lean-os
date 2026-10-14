@@ -11637,3 +11637,14 @@ table.tir-items-table { min-width: 640px; }
 .closing-accrual-amt { @apply text-right text-xs text-[var(--text-muted)]; }
 .closing-adjust-wide { max-width: 1080px; }
 .closing-accrual-gap { @apply text-center text-[11px] text-[var(--text-dim)]; grid-column: span 2; }
+/* 연말정산 공제 입력 팝업·마이페이지 줄 (2026-10-14, components/year-end-form.tsx · mypage/_components/MyYearEnd.tsx) */
+.ye-form { max-width: 1100px; }
+.ye-body { @apply grid gap-4 md:grid-cols-[minmax(0,1fr)_300px]; }
+.ye-fields { @apply flex flex-col gap-2; }
+.ye-fields h4 { @apply mt-2 border-b border-[var(--border)] pb-1 text-xs font-bold text-[var(--text)]; }
+.ye-preview { @apply flex flex-col gap-2 md:sticky md:top-0 md:self-start; }
+.ye-preview h4 { @apply text-xs font-bold text-[var(--text)]; }
+.ye-preview .rtf-table { min-width: 0; }
+.ye-mine-row { @apply flex flex-wrap items-center gap-2; }
+.ye-mine-result { @apply text-xs text-[var(--text-muted)]; }
+.ye-return-reason { @apply mr-auto max-w-xs text-xs; }

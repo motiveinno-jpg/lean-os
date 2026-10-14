@@ -1,4 +1,5 @@
 "use client";
+import { MyYearEnd } from "./_components/MyYearEnd";
 import { koFallback } from "@/lib/ko-label";
 import { logRead } from "@/lib/log-read";
 
@@ -612,6 +613,8 @@ export default function MyPage() {
             {employee?.id && <MyPayslips employeeId={employee.id} />}
             {employee?.id && <MyContractsCard employeeId={employee.id} />}
           </div>
+          {/*   연말정산 (2026-10-14, 베타 — feature_rollout 'year_end_settlement' 꺼져 있으면 아무것도 안 그린다) */}
+          {employee?.id && companyId && <MyYearEnd companyId={companyId} employeeId={employee.id} />}
           <section className="pnl-panel">
             <h3>증명서 <small className="font-normal text-[var(--text-dim)]">재직·경력·급여 증명을 신청합니다.</small></h3>
             <p>신청 제목에 종류와 용도를 적어 주세요.</p>

@@ -19376,6 +19376,79 @@ export type Database = {
           },
         ]
       }
+      year_end_settlements: {
+        Row: {
+          company_id: string
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          employee_id: string
+          id: string
+          input: Json
+          payroll: Json
+          result: Json
+          return_reason: string | null
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          year: number
+        }
+        Insert: {
+          company_id: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          employee_id: string
+          id?: string
+          input?: Json
+          payroll?: Json
+          result?: Json
+          return_reason?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          year: number
+        }
+        Update: {
+          company_id?: string
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          employee_id?: string
+          id?: string
+          input?: Json
+          payroll?: Json
+          result?: Json
+          return_reason?: string | null
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "year_end_settlements_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "year_end_settlements_confirmed_by_fkey"
+            columns: ["confirmed_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "year_end_settlements_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       year_end_tax_status: {
         Row: {
           company_id: string
