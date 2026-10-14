@@ -113,6 +113,21 @@ test("파일보관함 폴더 암호화 — 폴더 암호화 → 안 파일·새 
   const { readFile } = await import("node:fs/promises");
   expect(await readFile(await dl.path()), "다시 묻지 않고 원문으로 열린다").toEqual(Buffer.from(after));
 
+  //   다시 잠그기 → 폴더를 누르면 비밀번호부터, 맞히기 전엔 안이 보이지 않는다
+  await page.getByRole("button", { name: "다시 잠그기" }).click();
+  await expect(frow.locator(".vx-count"), "잠긴 폴더는 개수 대신 '암호화됨'").toHaveText("암호화됨", { timeout: 15_000 });
+  await frow.click();
+  await expect(page.getByRole("dialog", { name: "파일 암호화 비밀번호" }), "비밀번호부터 묻는다").toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".vx-crumb-last"), "아직 폴더 안으로 들어가지 않는다").not.toHaveText(folder);
+  await expect(page.locator(".vx-row", { hasText: `${SMOKE_TAG}-after.txt` }), "안의 파일 이름이 보이지 않는다").toHaveCount(0);
+  await page.getByPlaceholder("비밀번호", { exact: true }).fill("wrong-password");
+  await page.getByRole("button", { name: "확인", exact: true }).click();
+  await expect(page.locator(".vx-pw-err")).toHaveText("비밀번호가 맞지 않습니다.", { timeout: 15_000 });
+  await page.getByPlaceholder("비밀번호", { exact: true }).fill(pw);
+  await page.getByRole("button", { name: "확인", exact: true }).click();
+  await expect(page.locator(".vx-crumb-last"), "맞히면 들어간다").toHaveText(folder, { timeout: 15_000 });
+  await expect(arow, "맞힌 뒤에는 파일이 보인다").toBeVisible({ timeout: 15_000 });
+
   //   해제 → 원본으로
   await page.getByRole("button", { name: "상위 폴더로" }).click();
   await frow.getByRole("button", { name: `${folder} 폴더 메뉴` }).click();

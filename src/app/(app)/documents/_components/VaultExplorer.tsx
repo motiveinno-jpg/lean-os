@@ -101,10 +101,18 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   const [pwErr, setPwErr] = useState("");
   //   한 번 맞힌 폴더 비밀번호 — 이 화면을 떠나면 사라진다(메모리에만, 저장 안 함)
   const folderPwRef = useRef<Map<string, string>>(new Map());
+  //   비밀번호를 맞혀 이 화면에서 열어 둔 암호화 폴더 — 그 전에는 안의 이름·개수를 그리지 않는다
+  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
+  const rememberFolderPw = (id: string, pw: string | null) => {
+    if (pw) folderPwRef.current.set(id, pw); else folderPwRef.current.delete(id);
+    setUnlocked((prev) => { const n = new Set(prev); if (pw) n.add(id); else n.delete(id); return n; });
+  };
 
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 250); return () => clearTimeout(t); }, [query]);
   useEffect(() => { if (!menuFor) return; const close = () => setMenuFor(null); window.addEventListener("click", close); return () => window.removeEventListener("click", close); }, [menuFor]);
 
+  //   아래 파일 조회가 트리 계산보다 먼저 선언돼 있어 '가려졌나' 판정은 ref 로 넘긴다(매 렌더 갱신)
+  const isHiddenRef = useRef<(id: string | null) => boolean>(() => false);
   // ── 데이터 ──
   const { data: folders = [] } = useQuery<Folder[]>({
     queryKey: ["document-folders", companyId],
@@ -137,7 +145,8 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   //   지금 폴더의 파일(최신 판만, 파일보관함에 직접 올린 것만). 맨 위면 폴더 밖 파일.
   const { data: folderFiles = [], isLoading: filesLoading } = useQuery<VFile[]>({
     queryKey: ["storage-files", companyId, current],
-    enabled: !!companyId,
+    //   가려진 암호화 폴더 안은 받지도 않는다(비밀번호를 맞히면 그때 받는다)
+    enabled: !!companyId && !isHiddenRef.current(current),
     queryFn: async () => {
       const base = supabase.from("document_files").select("*");
       const data = logRead("documents/vault:files", await (current ? base.eq("folder_id", current) : base.eq("company_id", companyId).is("folder_id", null))
@@ -178,6 +187,10 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   const topOf = (f: Folder) => pathTo(f.id)[0] ?? f;
   //   이 폴더(자신 포함 위로)의 암호화 폴더 — 암호화 폴더 안에 또 암호화 폴더는 없다(DB 규칙)
   const lockedRootOf = (folderId: string | null): Folder | undefined => pathTo(folderId).find((f) => !!f.encryption);
+  //   이 폴더 안이 아직 가려져야 하나(암호화 폴더인데 이 화면에서 비밀번호를 안 맞힘)
+  const isHidden = (folderId: string | null) => { const r = lockedRootOf(folderId); return !!r && !unlocked.has(r.id); };
+  const sealed = (f: Folder) => !!f.encryption && !unlocked.has(f.id);
+  isHiddenRef.current = isHidden;
   const subtreeOf = (id: string): string[] => {
     const out = [id];
     for (let i = 0; i < out.length && i < 5000; i++) for (const c of children.get(out[i]) || []) out.push(c.id);
@@ -186,23 +199,39 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   const flatFolders = useMemo(() => {
     const out: { id: string; label: string }[] = [];
     const walk = (pid: string | null, depth: number) => {
-      for (const f of children.get(pid) || []) { out.push({ id: f.id, label: `${"　".repeat(depth)}${f.name}` }); walk(f.id, depth + 1); }
+      for (const f of children.get(pid) || []) {
+        out.push({ id: f.id, label: `${"　".repeat(depth)}${f.name}` });
+        //   가려진 암호화 폴더의 하위 폴더 이름은 '옮길 폴더' 목록에도 내놓지 않는다
+        if (!(f.encryption && !unlocked.has(f.id))) walk(f.id, depth + 1);
+      }
     };
     walk(null, 0);
     return out;
-  }, [children]);
+  }, [children, unlocked]);
 
   //   지금 폴더가 지워졌거나 안 보이게 되면 맨 위로
   useEffect(() => { if (current && folders.length && !byId.has(current)) setCurrent(ROOT); }, [current, folders, byId]);
 
-  const open = (id: string | null) => {
+  const goTo = (id: string | null) => {
     if (id) setExpanded((prev) => { const n = new Set(prev); for (const p of pathTo(id)) n.add(p.id); return n; });
     setCurrent(id); setQuery(""); setCreating(false); setNewName(""); setSelectedIds(new Set());
   };
+  //   암호화 폴더(또는 그 안)로 들어갈 때는 비밀번호를 맞힌 뒤에만 연다
+  const open = (id: string | null) => {
+    const root = lockedRootOf(id);
+    if (root && !unlocked.has(root.id)) {
+      askPw({ mode: "folderPw", folder: root, purpose: `「${root.name}」 폴더는 암호화돼 있어 비밀번호를 넣어야 안을 볼 수 있습니다.`, then: async () => goTo(id) });
+      return;
+    }
+    goTo(id);
+  };
+  //   다시 잠그기 — 이 화면이 기억한 비밀번호를 지우고 폴더 밖으로 나간다
+  const relock = (root: Folder) => { rememberFolderPw(root.id, null); goTo(root.parent_id && byId.has(root.parent_id) ? root.parent_id : ROOT); };
   const cur = current ? byId.get(current) : undefined;
   const crumbs = [{ id: null as string | null, name: "파일보관함" }, ...pathTo(current).map((f) => ({ id: f.id as string | null, name: f.name }))];
   const locOf = (folderId: string | null) => `위치: ${["파일보관함", ...pathTo(folderId).map((f) => f.name)].join(" › ")}`;
   const folderSub = (f: Folder) => {
+    if (sealed(f)) return "암호화됨";
     const nf = (children.get(f.id) || []).length;
     const nd = (fileCounts as Record<string, number>)[f.id] || 0;
     if (!nf && !nd) return "비어 있음";
@@ -213,9 +242,10 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   const q = debounced.toLowerCase();
   const searching = q.length > 0;
   const shownFolders: Folder[] = searching
-    ? folders.filter((f) => f.name.toLowerCase().includes(q)).sort((a, b) => a.name.localeCompare(b.name, "ko"))
-    : children.get(current) || [];
-  const shownFiles: VFile[] = searching ? foundFiles : folderFiles;
+    ? folders.filter((f) => f.name.toLowerCase().includes(q) && !isHidden(f.parent_id)).sort((a, b) => a.name.localeCompare(b.name, "ko"))
+    : isHidden(current) ? [] : children.get(current) || [];
+  //   검색 결과에서도 가려진 암호화 폴더 안 파일은 빼고, 지금 폴더가 가려져 있으면 아무것도 그리지 않는다
+  const shownFiles: VFile[] = searching ? foundFiles.filter((f) => !isHidden(f.folder_id)) : isHidden(current) ? [] : folderFiles;
   const selectable = shownFiles.filter(canDeleteFile);
   const allOn = selectable.length > 0 && selectable.every((f) => selectedIds.has(f.id));
   const summary = searching
@@ -332,20 +362,20 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
         toast(r.locked > 1 ? `암호화했습니다 (지난 판 포함 ${r.locked}개)` : "암호화했습니다", "success");
       } else if (pwAsk.mode === "folderPw") {
         if (!(await checkVaultFolderPassword(pwAsk.folder.encryption, pw))) { setPwErr("비밀번호가 맞지 않습니다."); return; }
-        folderPwRef.current.set(pwAsk.folder.id, pw);
+        rememberFolderPw(pwAsk.folder.id, pw);
         const then = pwAsk.then;
         setPwAsk(null);
         await then(pw);
       } else if (pwAsk.mode === "folderLock") {
         const f = pwAsk.folder;
         const r = await lockVaultFolder(f.id, subtreeOf(f.id), pw, { companyId, userId, canLockOthers: canDeleteOthers });
-        folderPwRef.current.set(f.id, pw);
+        rememberFolderPw(f.id, pw);
         setPwAsk(null); refreshFiles(); refreshFolders(); qc.invalidateQueries({ queryKey: ["file-versions"] });
         toast(`「${f.name}」 폴더를 암호화했습니다${r.locked ? ` (파일 ${r.locked}개)` : ""}${r.alreadyLocked ? ` · 이미 따로 암호화돼 있던 ${r.alreadyLocked}개는 원래 비밀번호 그대로` : ""}`, "success");
       } else if (pwAsk.mode === "folderUnlock") {
         const f = pwAsk.folder;
         const r = await unlockVaultFolder(f.id, subtreeOf(f.id), f.encryption, pw, { companyId, userId });
-        folderPwRef.current.delete(f.id);
+        rememberFolderPw(f.id, null);
         setPwAsk(null); refreshFiles(); refreshFolders(); qc.invalidateQueries({ queryKey: ["file-versions"] });
         toast(r.wrong > 0 ? `폴더 암호화를 해제했습니다. 다른 비밀번호로 암호화된 파일 ${r.wrong}개는 그대로 남았습니다` : `「${f.name}」 폴더 암호화를 해제했습니다`, r.wrong > 0 ? "info" : "success");
       } else {
@@ -468,7 +498,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
 
   const renderTree = (pid: string | null, depth: number): React.ReactNode =>
     (children.get(pid) || []).map((f) => {
-      const kids = children.get(f.id) || [];
+      const kids = sealed(f) ? [] : children.get(f.id) || [];
       const isOpen = expanded.has(f.id);
       const active = f.id === current;
       return (
@@ -582,7 +612,8 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               {upProg && <span className="vx-progress">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b></span>}
             </div>
             <div className="vx-hint">{searching ? "결과를 누르면 그 폴더로 갑니다"
-              : lockedRootOf(current) ? <>{lockMark({ encryption: true })}암호화 폴더 · 올리는 파일은 모두 폴더 비밀번호로 암호화됩니다</>
+              : lockedRootOf(current) ? <>{lockMark({ encryption: true })}암호화 폴더 · 올리는 파일은 모두 폴더 비밀번호로 암호화됩니다
+                  <button type="button" className="vx-relock-btn" onClick={() => relock(lockedRootOf(current)!)}>다시 잠그기</button></>
               : "폴더를 누르면 안으로 들어갑니다"}</div>
           </div>
 

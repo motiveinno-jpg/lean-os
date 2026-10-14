@@ -165,12 +165,23 @@ export type CompanyFile = {
 export async function loadCompanyFiles(companyId: string): Promise<CompanyFile[]> {
   const data = await fetchPaged<any>("support-docs:company-files", () => supabase
     .from("document_files")
-    .select("id, file_name, file_url, tags, created_at, encryption, document_folders(name)")
+    .select("id, file_name, file_url, tags, created_at, encryption, folder_id, document_folders(name)")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
     .order("id"), 50000);
 
-  return ((data || []) as unknown as Array<CompanyFile & { encryption?: unknown; document_folders?: { name?: string } | null }>)
+  //   암호화 폴더(와 그 하위 폴더) 안 파일은 비밀번호를 넣기 전엔 이름도 보이지 않아야 한다 — 서류 찾기에서도 뺀다
+  const { data: fl } = await supabase.from("document_folders").select("id, parent_id, encryption").eq("company_id", companyId);
+  const fmap = new Map(((fl || []) as { id: string; parent_id: string | null; encryption: unknown }[]).map((x) => [x.id, x]));
+  const inLockedFolder = (id: string | null | undefined) => {
+    for (let cur = id ? fmap.get(id) : undefined, i = 0; cur && i < 200; cur = cur.parent_id ? fmap.get(cur.parent_id) : undefined, i++) {
+      if (cur.encryption) return true;
+    }
+    return false;
+  };
+
+  return ((data || []) as unknown as Array<CompanyFile & { encryption?: unknown; folder_id?: string | null; document_folders?: { name?: string } | null }>)
+    .filter((f) => !inLockedFolder(f.folder_id))
     .map((f) => ({
       id: f.id,
       file_name: f.file_name,

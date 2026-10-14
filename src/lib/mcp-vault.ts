@@ -402,7 +402,7 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
       const f = meta as { id: string; name: string; size: number | null; bucket: string; storage_path: string | null; folder: string | null; locked?: boolean } | null;
       if (!f) { files.push({ id, error: "파일이 없거나 볼 권한이 없습니다." }); continue; }
       //   잠긴 파일은 비밀번호로 잠긴 덩어리라 내려받아도 쓸 수 없다 — 링크를 만들지 않는다
-      if (f.locked) { files.push({ id, name: f.name, error: LOCKED_MSG }); continue; }
+      if (f.locked) { files.push({ id, error: LOCKED_MSG }); continue; }
       if (!f.storage_path) { files.push({ id, name: f.name, error: "저장된 실물이 없는 파일입니다." }); continue; }
       const { data: signed, error: sErr } = await db.storage.from(f.bucket).createSignedUrl(f.storage_path, DOWNLOAD_TTL_SEC);
       if (sErr || !signed?.signedUrl) { files.push({ id, name: f.name, error: "링크를 만들지 못했습니다." }); continue; }
