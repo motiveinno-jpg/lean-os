@@ -40,6 +40,7 @@ import { computeWhtForm } from "@/lib/tax-forms/wht-form";
 import { citOf, computeCitForm, CIT_LINES } from "@/lib/tax-forms/cit-form";
 import { toWhtRows, aggOf, WHT_SELECT, type WhtRow } from "@/lib/tax-forms/wht-rows";
 import { useStatementsTab } from "./_components/use-statements-tab";
+import { useLocalTaxTab } from "./_components/use-local-tax-tab";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
 import { fetchJournalLines } from "@/lib/journal-reports";
 import { friendlyError } from "@/lib/friendly-error";
@@ -96,9 +97,9 @@ export default function TaxFilingPage() {
   const [userId, setUserId] = useState<string | null>(null);
   useEffect(() => { getCurrentUser().then((u: any) => { if (u?.company_id) setCompanyId(u.company_id); if (u?.id) setUserId(u.id); }); }, []);
 
-  const [tab, setTab] = useState<"wht" | "vat" | "cit" | "stmt">(() => {
+  const [tab, setTab] = useState<"wht" | "vat" | "cit" | "local" | "stmt">(() => {
     const t = searchParams?.get("tab");
-    return t === "vat" ? "vat" : t === "cit" ? "cit" : t === "stmt" ? "stmt" : "wht";
+    return t === "vat" ? "vat" : t === "cit" ? "cit" : t === "local" ? "local" : t === "stmt" ? "stmt" : "wht";
   });
   //   홈 세금 일정 딥링크 ?tab=wht&month=YYYY-MM (2026-09-03 후속)
   const [month, setMonth] = useState(() => { const q = searchParams?.get("month"); return q && /^\d{4}-\d{2}$/.test(q) ? q : prevMonth(); });
@@ -137,7 +138,7 @@ export default function TaxFilingPage() {
     if (!href.startsWith("/finance/tax-filing")) { router.push(href); return; }
     const sp = new URL(href, "http://x").searchParams;
     const t = sp.get("tab");
-    setTab(t === "vat" ? "vat" : t === "cit" ? "cit" : t === "stmt" ? "stmt" : "wht");
+    setTab(t === "vat" ? "vat" : t === "cit" ? "cit" : t === "local" ? "local" : t === "stmt" ? "stmt" : "wht");
     const m = sp.get("month"); if (m && /^\d{4}-\d{2}$/.test(m)) setMonth(m);
     const y = Number(sp.get("year")); const per = sp.get("period"); const half = sp.get("half");
     if (t === "vat" || t === "cit") { if (y >= 2000 && y <= 2100) setYear(y); }
@@ -339,6 +340,9 @@ export default function TaxFilingPage() {
 
   //   ── 신고서 서식 · 마감 (2026-10-12 세무 2차 1단계) — 숫자는 위 T 그대로(전자신고 파일과 같은 값) ──
   const canTaxWrite = isMaster || hasPerm("/finance/tax-filing");
+  //   지방세 탭 (2026-10-14) — 법인지방소득세·주민세 종업원분·사업소분. _components/use-local-tax-tab
+  const local = useLocalTaxTab({ companyId, enabled: tab === "local", years,
+    renderDue: (d, id) => <DueDate d={d} done={taxChecked.has(id)} doneInfo={taxChecked.get(id)} onToggle={(on) => toggleChecked(id, on)} /> });
   //   지급명세서 탭 (2026-10-14 세무 2차 5단계) — 서류 10종·기간·마감·엑셀은 _components/use-statements-tab
   const stmt = useStatementsTab({
     companyId, userId, canWrite: canTaxWrite, enabled: tab === "stmt", years,
@@ -652,6 +656,7 @@ export default function TaxFilingPage() {
             <button type="button" className={tab === "wht" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("wht")}>원천세</button>
             <button type="button" className={tab === "vat" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("vat")}>부가세</button>
             <button type="button" className={tab === "cit" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("cit")}>법인세</button>
+            <button type="button" className={tab === "local" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("local")}>지방세</button>
             <button type="button" className={tab === "stmt" ? "collect-tab collect-tab-on" : "collect-tab"} onClick={() => setTab("stmt")}>지급명세서</button>
           </div>
           <div className="tax-upcoming">
@@ -722,6 +727,11 @@ export default function TaxFilingPage() {
               <Stat label="예상 법인세+지방세" value={won(cit.sum)} tone={cit.sum ? "minus" : undefined} />
             </ResultStrip>
           </>)}
+          {tab === "local" && (
+            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={local.exportXlsx}>엑셀</button>}>
+              {local.bar}
+            </QueryBar>
+          )}
           {tab === "stmt" && (
             <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={() => void stmt.exportXlsx()}>세무사 전달 엑셀</button>}>
               {stmt.bar}
@@ -811,6 +821,8 @@ export default function TaxFilingPage() {
                   </div>
                 </div>
               )
+            ) : tab === "local" ? (
+              local.body
             ) : tab === "stmt" ? (
               stmt.body
             ) : isLoading || retLoading || dailyLoading || payLoading ? (

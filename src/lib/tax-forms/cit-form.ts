@@ -24,7 +24,7 @@ export function citOf(base: number): { brackets: { label: string; rate: number; 
   for (const b of CIT_BRACKETS) {
     const amt = Math.min(base, b.upTo) - prev;
     if (amt <= 0) break;
-    const tax = Math.floor(amt * b.rate);
+    const tax = Math.floor((amt * Math.round(b.rate * 100)) / 100);   // 정수 백분율로 — 소수 곱셈 오차로 1원이 빠지지 않게
     brackets.push({ label: b.label, rate: b.rate, amt, tax });
     total += tax;
     prev = b.upTo;

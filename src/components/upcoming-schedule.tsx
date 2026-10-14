@@ -102,8 +102,10 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
   //   법인세는 재무 › 세무 신고 › 법인세(예상·세무사 패키지)로 — 세무 3차(2026-08-31)에서 화면이 생겼다.
   const yearly: Array<{ key: string; m: number; d: number; title: string; href: string }> = [
     { key: "cit", m: 3, d: 31, title: "법인세 신고/납부 (12월 결산)", href: "/finance/tax-filing?tab=cit" },
-    { key: "cit-local", m: 4, d: 30, title: "법인지방소득세 신고/납부", href: "/finance/tax-filing?tab=cit" },
+    { key: "cit-local", m: 4, d: 30, title: "법인지방소득세 신고/납부", href: "/finance/tax-filing?tab=local" },
     { key: "cit-interim", m: 8, d: 31, title: "법인세 중간예납", href: "/finance/tax-filing?tab=cit" },
+    //   주민세 사업소분 (2026-10-14 지방세 탭) — 8월 1일 기준, 8월 31일까지 위택스
+    { key: "local-lb", m: 8, d: 31, title: "주민세 사업소분 신고/납부", href: "/finance/tax-filing?tab=local" },
     //   지급명세서는 반기 딥링크 · 1/31 = 지난해 하반기, 7/31 = 올해 상반기 (2026-09-03 후속). href 의  {y} 는 기한 해.
     { key: "sps-h2", m: 1, d: 31, title: "근로 간이지급명세서 제출 (하반기분)", href: "/finance/tax-filing?tab=stmt&year={y-1}&half=2" },
     { key: "sps-h1", m: 7, d: 31, title: "근로 간이지급명세서 제출 (상반기분)", href: "/finance/tax-filing?tab=stmt&year={y}&half=1" },
