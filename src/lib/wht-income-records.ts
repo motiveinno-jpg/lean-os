@@ -66,3 +66,11 @@ export async function listIncomePaymentsRange(companyId: string, from: string, t
     .eq("company_id", companyId).gte("paid_on", from).lte("paid_on", to).order("paid_on").limit(20000));
   return ((data || []) as any[]).map((r) => ({ ...r, amount: Number(r.amount), necessary_expense: Number(r.necessary_expense), tax_rate: Number(r.tax_rate), income_tax: Number(r.income_tax), local_tax: Number(r.local_tax) }));
 }
+
+/** 근무일 기준 (4대보험 근로내용확인신고·보수총액신고 — 2026-10-14 6단계). 원천세·지급명세서는 지급일(paid_on) 기준이라 따로 둔다 */
+export async function listDailyLogsByWork(companyId: string, from: string, to: string): Promise<DailyLog[]> {
+  const data = logRead("wht-income:daily-work", await (supabase as any).from("daily_work_logs")
+    .select("id, employee_id, employee_name, work_date, paid_on, daily_wage, non_taxable, income_tax, local_tax, memo")
+    .eq("company_id", companyId).gte("work_date", from).lte("work_date", to).order("work_date").limit(20000));
+  return ((data || []) as any[]).map((r) => ({ ...r, daily_wage: Number(r.daily_wage), non_taxable: Number(r.non_taxable), income_tax: Number(r.income_tax), local_tax: Number(r.local_tax) }));
+}
