@@ -589,6 +589,13 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
             onClick={() => fileInputRef.current?.click()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>올리기
           </button>
+          {/*   암호화 폴더 안에서는 '다시 잠그기' — 이 화면이 기억한 비밀번호를 지우고 밖으로 나간다 */}
+          {lockedRootOf(current) && (
+            <button type="button" className="btn-secondary btn-sm vx-tool-btn" title="비밀번호를 다시 넣어야 열리게 합니다"
+              onClick={() => relock(lockedRootOf(current)!)}>
+              <Lock size={15} strokeWidth={2.4} />다시 잠그기
+            </button>
+          )}
           <button type="button" className="btn-secondary btn-sm vx-tool-btn" title="비밀번호를 아는 사람만 열 수 있게 암호화해서 올립니다"
             onClick={() => lockInputRef.current?.click()}>
             <Lock size={15} strokeWidth={2.4} />암호화해서 올리기
@@ -612,8 +619,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               {upProg && <span className="vx-progress">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b></span>}
             </div>
             <div className="vx-hint">{searching ? "결과를 누르면 그 폴더로 갑니다"
-              : lockedRootOf(current) ? <>{lockMark({ encryption: true })}암호화 폴더 · 올리는 파일은 모두 폴더 비밀번호로 암호화됩니다
-                  <button type="button" className="vx-relock-btn" onClick={() => relock(lockedRootOf(current)!)}>다시 잠그기</button></>
+              : lockedRootOf(current) ? <>{lockMark({ encryption: true })}암호화 폴더 · 올리는 파일은 모두 폴더 비밀번호로 암호화됩니다</>
               : "폴더를 누르면 안으로 들어갑니다"}</div>
           </div>
 
