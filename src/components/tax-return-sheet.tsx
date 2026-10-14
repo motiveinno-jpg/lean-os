@@ -22,7 +22,10 @@ import { WHT_LINES } from "@/lib/tax-forms/wht-form";
 const won = (n: unknown) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
 
 type Props = {
-  layout: "vat" | "wht";
+  /** list — 지급명세서처럼 사람마다 한 줄(2026-10-14 5단계). 칸 키 = rows[].key, 합계 키 = "total" */
+  layout: "vat" | "wht" | "list";
+  rows?: { key: string; label: string; sub?: string }[];
+  cols?: { n?: string; amount: string; tax?: string };
   kind: TaxReturnKind;
   companyId: string | null;
   userId: string | null;
@@ -80,10 +83,11 @@ export function TaxReturnSheet(p: Props) {
     }
     return { added, removed };
   }, [filed, p.sources]);
-  const totalKey = p.layout === "vat" ? "30" : "A99";
+  const totalKey = p.layout === "vat" ? "30" : p.layout === "wht" ? "A99" : "total";
   const filedTax = Math.round(Number(filed?.figures?.[totalKey]?.tax || 0));
   const nowTax = Math.round(Number(current[totalKey]?.tax || 0));
-  const revisedKind = !filed || !changed.length ? null : nowTax > filedTax ? "수정신고" : nowTax < filedTax ? "경정청구" : "수정신고(세액 같음)";
+  //   지급명세서(list)는 세액 증감과 상관없이 '수정 제출'이다 — 수정신고·경정청구는 신고서(부가세·원천세)에만 쓴다
+  const revisedKind = !filed || !changed.length ? null : p.layout === "list" ? "수정 제출" : nowTax > filedTax ? "수정신고" : nowTax < filedTax ? "경정청구" : "수정신고(세액 같음)";
   const [compare, setCompare] = useState(true);
   const showCompare = !!filed && changed.length > 0 && compare;
 
@@ -207,6 +211,26 @@ export function TaxReturnSheet(p: Props) {
   };
 
   //   마감 시각은 한국 시간으로(DB 는 UTC)
+  const listTable = () => {
+    const cols = p.cols || { amount: "지급액", tax: "소득세" };
+    const list = [...(p.rows || []), { key: "total", label: "합계" }];
+    return (
+      <table className="rtf-table">
+        <thead><tr><th>구분</th>{cols.n && <th>{cols.n}</th>}<th>{cols.amount}</th>{cols.tax && <th>{cols.tax}</th>}</tr></thead>
+        <tbody>
+          {list.map((r) => (
+            <tr key={r.key} className={`${r.key === "total" ? "rtf-sum" : ""} ${filed && changed.includes(r.key) ? "rtf-row-chg" : ""}`}>
+              <td className="rtf-label">{r.label}{"sub" in r && r.sub ? <span className="rtf-src">{r.sub}</span> : null}</td>
+              {cols.n && <td className="rtf-num">{cellVal(r.key, "n")}</td>}
+              <td className="rtf-num">{cellVal(r.key, "amount")}</td>
+              {cols.tax && <td className="rtf-num">{cellVal(r.key, "tax")}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  };
+
   const when = (s: string) => new Date(s).toLocaleString("sv-SE", { timeZone: "Asia/Seoul" }).slice(0, 16);
   return (
     <div className="rtf-wrap">
@@ -236,10 +260,10 @@ export function TaxReturnSheet(p: Props) {
           )}
         </span>
       </div>
-      {showCompare && <p className="rtf-legend">칸마다 위 = 당초(마감한 숫자), 아래 = 수정(지금 자료). 바뀐 칸은 빨간색입니다. {revisedKind === "경정청구" ? "세액이 줄어 경정청구 대상입니다(국세기본법 45조의2)." : "세액이 늘면 수정신고 대상입니다(국세기본법 45조) — 가산세는 세무사와 확인하세요."}</p>}
+      {showCompare && <p className="rtf-legend">칸마다 위 = 당초(마감한 숫자), 아래 = 수정(지금 자료). 바뀐 칸은 빨간색입니다. {p.layout === "list" ? "마감한 뒤 바뀐 사람의 명세는 홈택스에서 수정 제출합니다." : revisedKind === "경정청구" ? "세액이 줄어 경정청구 대상입니다(국세기본법 45조의2)." : "세액이 늘면 수정신고 대상입니다(국세기본법 45조) — 가산세는 세무사와 확인하세요."}</p>}
       {!filed && p.defaultManualNote && <p className="rtf-legend">{p.defaultManualNote}</p>}
       <div ref={sheetRef} className="rtf-sheet">
-        {p.layout === "vat" ? vatTable() : whtTable()}
+        {p.layout === "vat" ? vatTable() : p.layout === "wht" ? whtTable() : listTable()}
       </div>
     </div>
   );

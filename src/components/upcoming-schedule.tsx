@@ -107,6 +107,9 @@ function buildTaxSchedules(today: Date, windowEnd: Date): ScheduleItem[] {
     //   지급명세서는 반기 딥링크 · 1/31 = 지난해 하반기, 7/31 = 올해 상반기 (2026-09-03 후속). href 의  {y} 는 기한 해.
     { key: "sps-h2", m: 1, d: 31, title: "근로 간이지급명세서 제출 (하반기분)", href: "/finance/tax-filing?tab=stmt&year={y-1}&half=2" },
     { key: "sps-h1", m: 7, d: 31, title: "근로 간이지급명세서 제출 (상반기분)", href: "/finance/tax-filing?tab=stmt&year={y}&half=1" },
+    //   연간 지급명세서 (2026-10-14 세무 2차 5단계, 결정 263) — 지난해 귀속분. d: 0 = 그 전달 말일(2월 말, 윤년 자동)
+    { key: "aps-o", m: 3, d: 0, title: "이자·배당·기타소득 지급명세서 제출 (지난해분)", href: "/finance/tax-filing?tab=stmt&doc=ao&year={y-1}" },
+    { key: "aps-w", m: 3, d: 10, title: "근로·퇴직·사업소득 지급명세서 제출 (지난해분)", href: "/finance/tax-filing?tab=stmt&doc=aw&year={y-1}" },
   ];
   for (const y of yearly) {
     for (const yr of [today.getFullYear(), today.getFullYear() + 1]) {

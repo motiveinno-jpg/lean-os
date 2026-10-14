@@ -58,3 +58,11 @@ export async function deleteIncomePayment(id: string): Promise<void> {
   if (error) throw error;
   if (!data?.length) throw new Error("지울 기록을 찾지 못했습니다(권한 또는 이미 지워짐)");
 }
+
+/** 기간(연간 지급명세서) — 지급일 from~to */
+export async function listIncomePaymentsRange(companyId: string, from: string, to: string): Promise<IncomePayment[]> {
+  const data = logRead("wht-income:pays-range", await (supabase as any).from("income_payments")
+    .select("id, payee_name, payee_kind, income_kind, sub_kind, paid_on, amount, necessary_expense, tax_rate, income_tax, local_tax, memo")
+    .eq("company_id", companyId).gte("paid_on", from).lte("paid_on", to).order("paid_on").limit(20000));
+  return ((data || []) as any[]).map((r) => ({ ...r, amount: Number(r.amount), necessary_expense: Number(r.necessary_expense), tax_rate: Number(r.tax_rate), income_tax: Number(r.income_tax), local_tax: Number(r.local_tax) }));
+}

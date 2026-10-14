@@ -30,12 +30,13 @@ import { useMyPermissions } from "@/lib/permissions";
 import { AccessDenied } from "@/components/access-denied";
 import { useToast } from "@/components/toast";
 import { todayKst } from "@/lib/kst";
-import { comparePeople } from "@/lib/people-sort";
 import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGroup } from "@/components/query-kit";
 import { VatReturn, VAT_PERIODS, VAT_DOCS, vatFilingNow, vatDueDate, type VatPeriodKey, type VatDocKey } from "@/app/(app)/reports/vat/_components/VatReturn";
 import { computeStatements } from "@/lib/closing-snapshot";
 import { TaxReturnSheet } from "@/components/tax-return-sheet";
 import { computeWhtForm } from "@/lib/tax-forms/wht-form";
+import { toWhtRows, aggOf, WHT_SELECT, type WhtRow } from "@/lib/tax-forms/wht-rows";
+import { useStatementsTab } from "./_components/use-statements-tab";
 import { listFixedAssets, faCategoryLabel } from "@/lib/fixed-assets";
 import { fetchJournalLines } from "@/lib/journal-reports";
 import { friendlyError } from "@/lib/friendly-error";
@@ -83,9 +84,6 @@ function DueDate({ d, done, doneInfo, onToggle }: { d: string; done?: boolean; d
   </>);
 }
 /** 반기의 여섯 달 (h=1 → 01~06, h=2 → 07~12) */
-const halfMonths = (y: number, h: 1 | 2) =>
-  Array.from({ length: 6 }, (_, i) => `${y}-${String(h === 1 ? i + 1 : i + 7).padStart(2, "0")}`);
-
 //   법인세 세율 구간 (2023년 개정 후) — 결정 104. 지방소득세는 산출세액의 10%(구간세율 0.9~2.4%와 같다).
 //   ⚠️ 세율이 바뀌면 여기 상수를 고친다 — 화면에 '2026년 세율 기준'을 적어 어긋남이 보이게 한다.
 const CIT_BRACKETS = [
@@ -109,47 +107,6 @@ function citOf(base: number): { brackets: { label: string; rate: number; amt: nu
   return { brackets, total };
 }
 
-type WhtRow = {
-  employee_id: string; name: string; employee_number: string | null;
-  /** 사업소득자(프리랜서 3.3%) — 결정 102. 지금 고용형태 기준 */
-  biz: boolean;
-  period_month: string;
-  taxable: number; nonTaxable: number; incomeTax: number; localIncomeTax: number; issuedAt: string | null;
-  /** 급여대장 칸 (2026-10-14 4단계) — 4대보험 근로자 부담·공제 합계·실지급액 */
-  pension: number; health: number; ltc: number; employment: number; deductions: number; net: number;
-};
-const aggOf = (list: WhtRow[]) => ({
-  n: list.length,
-  taxable: list.reduce((s, r) => s + r.taxable, 0),
-  nonTaxable: list.reduce((s, r) => s + r.nonTaxable, 0),
-  incomeTax: list.reduce((s, r) => s + r.incomeTax, 0),
-  localTax: list.reduce((s, r) => s + r.localIncomeTax, 0),
-});
-
-/** payroll_items → WhtRow · 원천세·지급명세서가 같은 해석을 쓴다(두 곳에서 갈리면 안 된다) */
-function toWhtRows(data: any[]): WhtRow[]  {
-  return (data || []).map((r: any) => {
-    //   결정 101 — 과세 지급총액 = 과세 기본급 + 과세 수당(extras 의 allowance 는 전부 과세, 비과세 수당은 non_taxable 로 따로 든다)
-    const allowance = (Array.isArray(r.extras) ? r.extras : [])
-      .filter((e: any) => e?.type === "allowance" && Number(e?.amount) > 0)
-      .reduce((s: number, e: any) => s + Math.round(Number(e.amount)), 0);
-    return {
-      employee_id: r.employee_id,
-      name: r.employees?.name || "(이름 없음)",
-      employee_number: r.employees?.employee_number || null,
-      biz: r.employees?.employment_type === "freelance",
-      period_month: r.period_month,
-      taxable: Number(r.base_salary || 0) + allowance,
-      nonTaxable: Number(r.non_taxable_amount || 0),
-      incomeTax: Number(r.income_tax || 0),
-      localIncomeTax: Number(r.local_income_tax || 0),
-      issuedAt: r.issued_at || null,
-      pension: Number(r.national_pension || 0), health: Number(r.health_insurance || 0), ltc: Number(r.long_term_care_insurance || 0),
-      employment: Number(r.employment_insurance || 0), deductions: Number(r.deductions_total || 0), net: Number(r.net_pay || 0),
-    };
-  }).sort((a: WhtRow, b: WhtRow) => comparePeople(a, b));
-}
-const WHT_SELECT = "employee_id, period_month, base_salary, non_taxable_amount, income_tax, local_income_tax, extras, issued_at, national_pension, health_insurance, long_term_care_insurance, employment_insurance, deductions_total, net_pay, employees(name, employee_number, employment_type)";
 
 export default function TaxFilingPage() {
   const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
@@ -172,12 +129,6 @@ export default function TaxFilingPage() {
   //   부가세 서류(신고서·부속서류) — 한 줄 셀렉트. 기억하지 않는다(나갔다 오면 신고서)
   const [vatDoc, setVatDoc] = useState<VatDocKey>("return");
   const vatExportRef = useRef<(() => void) | null>(null);   // VatReturn 이 집계 후 채운다 — 조회 줄 [세무사 전달 엑셀]
-  //   지급명세서 — 근로는 반기, 사업소득은 달 (결정 103). 기본 반기 = 마지막으로 끝난 반기(1~6월엔 지난해 하반기)
-  const [stmtKind, setStmtKind] = useState<"work" | "biz">("work");
-  //   딥링크 ?tab=stmt&year=&half= 가 있으면 그 반기로 (2026-09-03 후속)
-  const [stmtYear, setStmtYear] = useState(() => { const q = Number(searchParams?.get("year")); if (searchParams?.get("tab") === "stmt" && q >= 2000 && q <= 2100) return q; const t = todayKst(); return Number(t.slice(5, 7)) <= 6 ? Number(t.slice(0, 4)) - 1 : Number(t.slice(0, 4)); });
-  const [stmtHalf, setStmtHalf] = useState<1 | 2>(() => { const q = searchParams?.get("half"); if (q === "1" || q === "2") return Number(q) as 1 | 2; return Number(todayKst().slice(5, 7)) <= 6 ? 2 : 1; });
-  const [stmtMonth, setStmtMonth] = useState(prevMonth);
 
   //   ── 납부 완료 체크 + 다가오는 신고 요약 줄 (2026-09-03 후속) ──
   //   체크는 홈 세금 일정 위젯과 같은 쿼리 키·같은 표. 요약 줄은 홈과 같은 달력(getUpcomingTaxDeadlines 60일)에서
@@ -210,7 +161,7 @@ export default function TaxFilingPage() {
     const y = Number(sp.get("year")); const per = sp.get("period"); const half = sp.get("half");
     if (t === "vat" || t === "cit") { if (y >= 2000 && y <= 2100) setYear(y); }
     if (VAT_PERIODS.some((p) => p.key === per)) setVatPeriod(per as VatPeriodKey);
-    if (t === "stmt") { setStmtKind("work"); if (y >= 2000 && y <= 2100) setStmtYear(y); if (half === "1" || half === "2") setStmtHalf(Number(half) as 1 | 2); }
+    if (t === "stmt") stmt.setDeepLink({ doc: sp.get("doc"), year: y, half, month: sp.get("month") });
   };
 
   const { data: rows = [], isLoading } = useQuery<WhtRow[]>({
@@ -241,14 +192,6 @@ export default function TaxFilingPage() {
   const { data: incomePays = [], isLoading: payLoading } = useQuery<IncomePayment[]>({
     queryKey: ["income-payments", companyId, month], enabled: !!companyId && tab === "wht",
     queryFn: () => listIncomePayments(companyId!, month),
-  });
-  //   지급명세서 자료 · 근로 반기(여섯 달) / 사업소득 한 달
-  const stmtMonths = stmtKind === "work" ? halfMonths(stmtYear, stmtHalf) : [stmtMonth];
-  const  { data: stmtRows = [], isLoading: stmtLoading } = useQuery<WhtRow[]>({
-    queryKey: ["wht-stmt", companyId, stmtKind, ...stmtMonths],
-    enabled: !!companyId && tab === "stmt",
-    queryFn: async () => toWhtRows(logRead("tax-filing:stmt", await (supabase as any).from("payroll_items")
-      .select(WHT_SELECT).eq("company_id", companyId!).in("period_month", stmtMonths)) as any[]),
   });
 
   //   법인세 예상 (결정 104) — 마감·재무제표와 같은 lib(computeStatements = 확정 전표)로 연간 손익을 계산한다.
@@ -387,6 +330,12 @@ export default function TaxFilingPage() {
 
   //   ── 신고서 서식 · 마감 (2026-10-12 세무 2차 1단계) — 숫자는 위 T 그대로(전자신고 파일과 같은 값) ──
   const canTaxWrite = isMaster || hasPerm("/finance/tax-filing");
+  //   지급명세서 탭 (2026-10-14 세무 2차 5단계) — 서류 10종·기간·마감·엑셀은 _components/use-statements-tab
+  const stmt = useStatementsTab({
+    companyId, userId, canWrite: canTaxWrite, enabled: tab === "stmt", years,
+    initial: { doc: searchParams?.get("doc"), year: searchParams?.get("tab") === "stmt" ? Number(searchParams?.get("year")) || null : null, half: searchParams?.get("half"), month: searchParams?.get("month") },
+    renderDue: (d, id) => <DueDate d={d} done={taxChecked.has(id)} doneInfo={taxChecked.get(id)} onToggle={(on) => toggleChecked(id, on)} />,
+  });
   const whtCompute = useMemo(() => () => computeWhtForm({
     work: { n: T.work.n, pay: T.work.taxable, tax: T.work.incomeTax },
     biz: { n: T.biz.n, pay: T.biz.taxable, tax: T.biz.incomeTax },
@@ -406,34 +355,6 @@ export default function TaxFilingPage() {
     retirement: retRows.map((r) => ({ id: r.id, employee_name: r.employee_name, paid_on: r.paid_on, retirement_pay: r.retirement_pay, income_tax: r.income_tax, local_tax: r.local_tax, irp_deferred: r.irp_deferred })),
   }), [rows, dailyLogs, incomePays, retRows]);
 
-  //   근로 간이지급명세서 — 인별 × 월 피벗 (지급액 = 과세, 서식 작성요령과 같다)
-  const workStmt = useMemo(() => {
-    const src = stmtRows.filter((r) => !r.biz);
-    const byEmp = new Map<string, { employee_id: string; name: string; employee_number: string | null; months: Record<string, number>; total: number }>();
-    for (const r of src) {
-      const cur = byEmp.get(r.employee_id) || { employee_id: r.employee_id, name: r.name, employee_number: r.employee_number, months: {}, total: 0 };
-      cur.months[r.period_month] = (cur.months[r.period_month] || 0) + r.taxable;
-      cur.total += r.taxable;
-      byEmp.set(r.employee_id, cur);
-    }
-    return [...byEmp.values()].sort(comparePeople);
-  }, [stmtRows]);
-  const bizStmt = useMemo(() => stmtRows.filter((r) => r.biz), [stmtRows]);
-  const bizStmtT = useMemo(() => aggOf(bizStmt), [bizStmt]);
-  //   주민등록번호 등록 여부 (결정 108) — 등록된 직원 id 집합. 전문은 엑셀을 만드는 순간에만 RPC 로 받는다.
-  const { data: rrnRegistered = new Set<string>() } = useQuery({
-    queryKey: ["rrn-registered", companyId],
-    enabled: !!companyId && tab === "stmt",
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc("list_rrn_registered");
-      if (error) return new Set<string>();
-      return new Set<string>(((data || []) as any[]).map((r) => (typeof r === "string" ? r : r.list_rrn_registered || r.employee_id)));
-    },
-  });
-  const stmtEmpIds = useMemo(
-    () => (stmtKind === "work" ? workStmt.map((e) => e.employee_id) : bizStmt.map((r) => r.employee_id)),
-    [stmtKind, workStmt, bizStmt]);
-  const rrnMissing = useMemo(() => stmtEmpIds.filter((id) => !rrnRegistered.has(id)).length, [stmtEmpIds, rrnRegistered]);
 
   const { toast } = useToast();
   const exportWht = () => {
@@ -493,51 +414,6 @@ export default function TaxFilingPage() {
       XLSX.utils.book_append_sheet(wb, ws3, "퇴직소득");
     }
     XLSX.writeFile(wb, `원천세신고준비_${month}.xlsx`);
-  };
-  //   지급명세서 엑셀 — 주민등록번호는 등록된 직원만 이 순간에 RPC 로 받아 채운다(결정 108: 전문 조회는 기록됨).
-  //   미등록은 빈 칸 + '(미등록)' 표기 — 세무사가 채우거나 구성원 상세에서 입력.
-  const fetchRrns = async (ids: string[]): Promise<Map<string, string>> => {
-    const target = ids.filter((id) => rrnRegistered.has(id));
-    const out = new Map<string, string>();
-    //   RPC 는 호출당 500명 상한(보안 검수 P3) — 넘으면 청크로 나눠 부른다
-    for (let i = 0; i < target.length; i += 500) {
-      const { data, error } = await (supabase as any).rpc("get_rrns_for_statement", { p_employee_ids: target.slice(i, i + 500) });
-      if (error) { toast(`주민등록번호 조회 실패 · ${friendlyError(error)}`, "error"); return new Map(); }
-      for (const r of (data || []) as any[]) out.set(r.employee_id as string, r.rrn as string);
-    }
-    return out;
-  };
-  const exportStmt = async () => {
-    const wb = XLSX.utils.book_new();
-    if (stmtKind === "work") {
-      if (!workStmt.length) { toast("이 반기에 발송된 급여 명세가 없습니다", "info"); return; }
-      const rrn = await fetchRrns(workStmt.map((e) => e.employee_id));
-      const ws = XLSX.utils.aoa_to_sheet([
-        ["근로소득 간이지급명세서 준비", `${stmtYear}년 ${stmtHalf === 1 ? "상반기(1~6월)" : "하반기(7~12월)"}`, "발송된 급여 명세 기준 · 지급액=과세 (오너뷰)"], [],
-        ["이름", "사번", "주민등록번호", ...stmtMonths.map((m) => `${Number(m.slice(5, 7))}월`), "합계"],
-        ...workStmt.map((e) => [e.name, e.employee_number || "", rrn.get(e.employee_id) || "(미등록)", ...stmtMonths.map((m) => num(e.months[m] || 0)), num(e.total)]),
-        ["합계", "", "", ...stmtMonths.map((m) => num(workStmt.reduce((s, e) => s + (e.months[m] || 0), 0))), num(workStmt.reduce((s, e) => s + e.total, 0))],
-        [], ["※ 주민등록번호가 포함된 파일입니다. 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
-      ]);
-      ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 20 }, ...stmtMonths.map(() => ({ wch: 12 })), { wch: 14 }];
-      XLSX.utils.book_append_sheet(wb, ws, "근로 간이지급명세서");
-      XLSX.writeFile(wb, `근로간이지급명세서_${stmtYear}_${stmtHalf === 1 ? "상반기" : "하반기"}.xlsx`);
-      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다. 조회 기록이 남습니다`, "info");
-    } else {
-      if (!bizStmt.length) { toast("이 달 사업소득(프리랜서) 지급 기록이 없습니다", "info"); return; }
-      const rrn = await fetchRrns(bizStmt.map((r) => r.employee_id));
-      const ws = XLSX.utils.aoa_to_sheet([
-        ["사업소득 간이지급명세서 준비", `${stmtMonth} 지급분`, "발송된 급여 명세 기준 (오너뷰)"], [],
-        ["이름", "사번", "주민등록번호", "지급액", "소득세(3%)", "지방소득세(0.3%)"],
-        ...bizStmt.map((r) => [r.name, r.employee_number || "", rrn.get(r.employee_id) || "(미등록)", num(r.taxable), num(r.incomeTax), num(r.localIncomeTax)]),
-        ["합계", "", "", num(bizStmtT.taxable), num(bizStmtT.incomeTax), num(bizStmtT.localTax)],
-        [], ["※ 주민등록번호가 포함된 파일입니다. 보관·전달에 주의하세요. (미등록)은 구성원 상세 › 기본 정보에서 입력하면 채워집니다."],
-      ]);
-      ws["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 14 }];
-      XLSX.utils.book_append_sheet(wb, ws, "사업소득 간이지급명세서");
-      XLSX.writeFile(wb, `사업소득간이지급명세서_${stmtMonth}.xlsx`);
-      if (rrn.size > 0) toast(`주민등록번호 ${rrn.size}명분이 포함됐습니다. 조회 기록이 남습니다`, "info");
-    }
   };
 
   //   세무사 전달 패키지 (결정 104) — 3월에 세무사에게 보낼 것을 한 버튼에: 손익·재무상태표(계정별)·
@@ -818,23 +694,8 @@ export default function TaxFilingPage() {
             </ResultStrip>
           </>)}
           {tab === "stmt" && (
-            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={exportStmt}>세무사 전달 엑셀</button>}>
-              <ChipGroup value={stmtKind} onChange={setStmtKind}
-                options={[{ value: "work", label: "근로 (반기)" }, { value: "biz", label: "사업소득 (월)" }] as const} />
-              {stmtKind === "work" ? (<>
-                <select value={stmtYear} onChange={(e) => setStmtYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="연도">
-                  {years.map((y) => <option key={y} value={y}>{y}년</option>)}
-                </select>
-                <select value={stmtHalf} onChange={(e) => setStmtHalf(Number(e.target.value) as 1 | 2)} className="qk-input h-8 px-2.5 text-xs" aria-label="반기">
-                  <option value={1}>상반기 (1~6월)</option>
-                  <option value={2}>하반기 (7~12월)</option>
-                </select>
-                <span className="text-[11px] text-[var(--text-dim)]">제출 기한 <DueDate d={stmtHalf === 1 ? `${stmtYear}-07-31` : `${stmtYear + 1}-01-31`} done={taxChecked.has(stmtHalf === 1 ? `sps-h1-${stmtYear}-07-31` : `sps-h2-${stmtYear + 1}-01-31`)} doneInfo={taxChecked.get(stmtHalf === 1 ? `sps-h1-${stmtYear}-07-31` : `sps-h2-${stmtYear + 1}-01-31`)} onToggle={(on) => toggleChecked(stmtHalf === 1 ? `sps-h1-${stmtYear}-07-31` : `sps-h2-${stmtYear + 1}-01-31`, on)} /> · 홈택스</span>
-              </>) : (<>
-                <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
-                <MonthSelect className="inv-input fin-close-month" value={stmtMonth} onChange={(v) => v && setStmtMonth(v)} ariaLabel="지급월" />
-                <span className="text-[11px] text-[var(--text-dim)]">제출 기한은 지급 다음 달 말일입니다.</span>
-              </>)}
+            <QueryBar right={<button type="button" className="btn-secondary btn-sm" onClick={() => void stmt.exportXlsx()}>세무사 전달 엑셀</button>}>
+              {stmt.bar}
             </QueryBar>
           )}
         </QueryHead>
@@ -916,60 +777,7 @@ export default function TaxFilingPage() {
                 </div>
               )
             ) : tab === "stmt" ? (
-              stmtLoading ? <div className="collect-empty">불러오는 중…</div> : (
-                <div className="vr-wrap">
-                  {stmtKind === "work" ? (
-                    workStmt.length === 0 ? (
-                      <div className="collect-empty">{stmtYear}년 {stmtHalf === 1 ? "상반기" : "하반기"}에 <b>발송된 급여 명세가 없습니다.</b><br />급여 명세서를 발송하면 여기에 잡힙니다.</div>
-                    ) : (
-                      <div className="pnl-panel">
-                        <h3>근로소득 간이지급명세서</h3><p title="주민등록번호 조회 기록이 남습니다">인별 월 지급액이며 주민등록번호는 엑셀에만 담깁니다.
-                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명은 구성원 상세에서 입력하세요.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
-                        <div className="stg-table-wrap vr-scroll">
-                          <table className="ev-table ev-lined table-inv-status-sm">
-                            <thead><tr><th>이름</th>{stmtMonths.map((m) => <th key={m}>{Number(m.slice(5, 7))}월</th>)}<th>합계</th></tr></thead>
-                            <tbody>
-                              {workStmt.map((e) => (
-                                <tr key={`${e.name}-${e.employee_number}`}>
-                                  <td className="text-left">{e.name}{e.employee_number && <span className="ev-dim"> #{e.employee_number}</span>}</td>
-                                  {stmtMonths.map((m) => <td key={m} className="tr mono-number">{e.months[m] ? won(e.months[m]) : <span className="ev-dim">—</span>}</td>)}
-                                  <td className="tr mono-number"><b>{won(e.total)}</b></td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot><tr className="vr-sum"><td className="text-left">합계 ({workStmt.length}명)</td>{stmtMonths.map((m) => <td key={m} className="tr mono-number">{won(workStmt.reduce((s, e) => s + (e.months[m] || 0), 0))}</td>)}<td className="tr mono-number">{won(workStmt.reduce((s, e) => s + e.total, 0))}</td></tr></tfoot>
-                          </table>
-                        </div>
-                      </div>
-                    )
-                  ) : (
-                    bizStmt.length === 0 ? (
-                      <div className="collect-empty">{stmtMonth} 지급분 <b>사업소득 지급 기록이 없습니다.</b><br />고용형태가 <b>프리랜서</b>인 구성원의 급여 명세를 발송하면 잡힙니다.</div>
-                    ) : (
-                      <div className="pnl-panel">
-                        <h3>사업소득 간이지급명세서</h3><p title="주민등록번호 조회 기록이 남습니다">{stmtMonth} 지급분이며 주민등록번호는 엑셀에만 담깁니다.
-                          {rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명은 구성원 상세에서 입력하세요.</b> : ` 주민번호 ${stmtEmpIds.length}명 전원 등록됨.`}</p>
-                        <div className="stg-table-wrap vr-scroll">
-                          <table className="ev-table ev-lined table-inv-status-sm">
-                            <thead><tr><th>이름</th><th>지급액</th><th>소득세 (3%)</th><th>지방소득세 (0.3%)</th></tr></thead>
-                            <tbody>
-                              {bizStmt.map((r) => (
-                                <tr key={r.employee_id}>
-                                  <td className="text-left">{r.name}{r.employee_number && <span className="ev-dim"> #{r.employee_number}</span>}</td>
-                                  <td className="tr mono-number">{won(r.taxable)}</td>
-                                  <td className="tr mono-number">{won(r.incomeTax)}</td>
-                                  <td className="tr mono-number">{won(r.localIncomeTax)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                            <tfoot><tr className="vr-sum"><td className="text-left">합계 ({bizStmt.length}명)</td><td className="tr mono-number">{won(bizStmtT.taxable)}</td><td className="tr mono-number">{won(bizStmtT.incomeTax)}</td><td className="tr mono-number">{won(bizStmtT.localTax)}</td></tr></tfoot>
-                          </table>
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              )
+              stmt.body
             ) : isLoading || retLoading || dailyLoading || payLoading ? (
               <div className="collect-empty">불러오는 중…</div>
             ) : rows.length === 0 && retRows.length === 0 && dailyLogs.length === 0 && incomePays.length === 0 ? (<>
