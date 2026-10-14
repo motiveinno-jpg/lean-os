@@ -268,6 +268,8 @@ export function matchCatalogRoute(pathname: string): string | null {
 /** 현재 사용자 권한 — 마스터는 전부 true. 멤버는 member_permissions 기반. */
 export function useMyPermissions(): {
   isMaster: boolean;
+  /** 세무대리인 열람 세션 — 화면은 권한대로 보이지만 쓰기는 DB 가 전부 막는다(쓰기 버튼을 숨기는 데 쓴다) */
+  isAdvisor: boolean;
   loading: boolean;
   hasPerm: (key: string) => boolean;
   hasMenu: (route: string) => boolean;
@@ -310,6 +312,7 @@ export function useMyPermissions(): {
       : (!key.includes(":") && ALWAYS_ALLOWED_ROUTES.has(key)) || set.has(key));
   return {
     isMaster,
+    isAdvisor,
     loading: userLoading || (!isMaster && isLoading),
     hasPerm,
     hasMenu: (route: string) => hasPerm(route),

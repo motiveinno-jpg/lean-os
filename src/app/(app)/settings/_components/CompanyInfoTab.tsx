@@ -1155,6 +1155,10 @@ function AdvisorPermissionPanel({ linkId, advisorName }: { linkId: string; advis
       <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
         <div className="text-[11px] text-[var(--text-muted)]">
           체크한 메뉴만 {advisorName} 세무사에게 읽기 전용으로 보입니다.
+          {/*   2026-10-14 세무대리인 열람(보안 검토 W2) — 인사 권한은 구성원과 같은 범위가 열린다 */}
+          {(checked.has("/employees:all") || checked.has("/employees:salary")) && (
+            <span className="block text-[var(--warning)] mt-0.5">인사 권한을 주면 구성원 계좌·연락처·주소{checked.has("/employees:salary") ? "·급여 명세·연말정산 공제 자료" : ""}까지 보입니다(주민등록번호는 제외). 개인정보 처리 위탁 범위인지 확인하세요.</span>
+          )}
         </div>
         <button onClick={() => saveMut.mutate()} disabled={!dirty || saveMut.isPending} className="btn-primary btn-sm disabled:opacity-40">
           {saveMut.isPending ? "저장 중…" : "저장"}

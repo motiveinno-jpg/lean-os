@@ -92,7 +92,7 @@ function DueDate({ d, done, doneInfo, onToggle }: { d: string; done?: boolean; d
 
 
 export default function TaxFilingPage() {
-  const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
+  const { isMaster, isAdvisor, hasPerm, loading: permLoading } = useMyPermissions();
   const searchParams = useSearchParams();
   const [companyId, setCompanyId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -154,7 +154,9 @@ export default function TaxFilingPage() {
       .select(WHT_SELECT).eq("company_id", companyId!).eq("period_month", month)) as any[]),
   });
   //   퇴직금 지급 기록 · 지급일이 이 달인 것 (2026-10-07 ERP 3차 A). 읽기는 RLS 가 급여 권한자·마스터로 좁힌다(payroll_items 와 같다)
-  const canWriteRetire = isMaster || hasPerm("/employees:salary");
+  //   세무대리인은 읽기 전용(2026-10-14) — 같은 권한이어도 기록·마감·납부 체크 버튼을 숨긴다(DB 가 어차피 거절)
+  const canWriteRetire = !isAdvisor && (isMaster || hasPerm("/employees:salary"));
+  const canReadSalary = isMaster || hasPerm("/employees:salary");
   const [retDialog, setRetDialog] = useState<{ edit: RetirementPayment | null } | null>(null);
   const { data: retRows = [], isLoading: retLoading } = useQuery<RetirementPayment[]>({
     queryKey: ["retirement-payments", companyId, month],
@@ -351,15 +353,15 @@ export default function TaxFilingPage() {
   }, [rows, retRows, dailyLogs, incomePays, yeList]);
 
   //   ── 신고서 서식 · 마감 (2026-10-12 세무 2차 1단계) — 숫자는 위 T 그대로(전자신고 파일과 같은 값) ──
-  const canTaxWrite = isMaster || hasPerm("/finance/tax-filing");
+  const canTaxWrite = !isAdvisor && (isMaster || hasPerm("/finance/tax-filing"));
   //   지방세 탭 (2026-10-14) — 법인지방소득세·주민세 종업원분·사업소분. _components/use-local-tax-tab
   const local = useLocalTaxTab({ companyId, enabled: tab === "local", years,
-    renderDue: (d, id) => <DueDate d={d} done={taxChecked.has(id)} doneInfo={taxChecked.get(id)} onToggle={(on) => toggleChecked(id, on)} /> });
+    renderDue: (d, id) => <DueDate d={d} done={taxChecked.has(id)} doneInfo={taxChecked.get(id)} onToggle={isAdvisor ? undefined : (on) => toggleChecked(id, on)} /> });
   //   지급명세서 탭 (2026-10-14 세무 2차 5단계) — 서류 10종·기간·마감·엑셀은 _components/use-statements-tab
   const stmt = useStatementsTab({
     companyId, userId, canWrite: canTaxWrite, enabled: tab === "stmt", years,
     initial: { doc: searchParams?.get("doc"), year: searchParams?.get("tab") === "stmt" ? Number(searchParams?.get("year")) || null : null, half: searchParams?.get("half"), month: searchParams?.get("month") },
-    renderDue: (d, id) => <DueDate d={d} done={taxChecked.has(id)} doneInfo={taxChecked.get(id)} onToggle={(on) => toggleChecked(id, on)} />,
+    renderDue: (d, id) => <DueDate d={d} done={taxChecked.has(id)} doneInfo={taxChecked.get(id)} onToggle={isAdvisor ? undefined : (on) => toggleChecked(id, on)} />,
   });
   //   7단계 세무 이월 — ⑫ 전월 미환급세액 = 지난달 원천세 신고본의 ⑳ 차월이월 환급세액(마감한 숫자)
   const prevWhtMonth = (() => { const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7)); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; })();
@@ -529,7 +531,7 @@ export default function TaxFilingPage() {
       <p title="미사용 연차 수당·마지막 달 급여는 근로소득이라 급여 명세로 정산합니다">회사가 직접 지급한 퇴직금입니다. 기록하면 신고서 A22·A20에 들어갑니다.
         {T.irpN > 0 && <b className="vr-warn"> IRP 이전(과세이연) {T.irpN}건은 신고서에 없습니다 — 홈택스에서 직접 신고하세요.</b>}</p>
       {retRows.length === 0 ? (
-        <div className="collect-empty">{month} 지급분 퇴직금 기록이 없습니다.{!canWriteRetire && <><br /><span className="vr-warn">급여 권한이 없으면 퇴직금 기록이 보이지 않아 위 신고서에서도 빠집니다. 급여 권한자에게 확인하세요.</span></>}</div>
+        <div className="collect-empty">{month} 지급분 퇴직금 기록이 없습니다.{!canReadSalary && <><br /><span className="vr-warn">급여 권한이 없으면 퇴직금 기록이 보이지 않아 위 신고서에서도 빠집니다. 급여 권한자에게 확인하세요.</span></>}</div>
       ) : (
         <div className="stg-table-wrap vr-scroll">
           <table className="ev-table ev-lined table-inv-status-sm">
@@ -564,7 +566,7 @@ export default function TaxFilingPage() {
       <p>인사 › 증명서 › 연말정산 자료에서 <b>확정한</b> 사람만 신고서 A04·A10에 들어갑니다. 소득세는 차감징수세액(환급이면 −)입니다.
         중도 퇴사자 정산(A02)·반기 신고는 직접 넣으세요.</p>
       {yeList.length === 0 ? (
-        <div className="collect-empty">확정한 {yeYear}년 귀속 연말정산이 없습니다.{!canWriteRetire && <><br /><span className="vr-warn">급여 권한이 없으면 연말정산이 보이지 않아 신고서에서도 빠집니다.</span></>}</div>
+        <div className="collect-empty">확정한 {yeYear}년 귀속 연말정산이 없습니다.{!canReadSalary && <><br /><span className="vr-warn">급여 권한이 없으면 연말정산이 보이지 않아 신고서에서도 빠집니다.</span></>}</div>
       ) : (
         <p className="inv-hint">확정 {T.yearEnd.n}명 · 총급여 {won(T.yearEnd.pay)} · 차감 소득세 {T.yearEnd.tax < 0 ? `환급 ${won(-T.yearEnd.tax)}` : `추가 징수 ${won(T.yearEnd.tax)}`} · 지방소득세 {T.yearEnd.local < 0 ? `환급 ${won(-T.yearEnd.local)}` : won(T.yearEnd.local)}</p>
       )}
@@ -580,7 +582,7 @@ export default function TaxFilingPage() {
       </div>
       <p>고용형태 &apos;일용직&apos; 구성원의 날마다 일당입니다. 지급일이 이 달인 기록이 신고서 A03·A10에 들어갑니다.</p>
       {dailyLogs.length === 0 ? (
-        <div className="collect-empty">{month} 지급분 일용 근무 기록이 없습니다.{!canWriteRetire && <><br /><span className="vr-warn">급여 권한이 없으면 일용 기록이 보이지 않아 신고서에서도 빠집니다.</span></>}</div>
+        <div className="collect-empty">{month} 지급분 일용 근무 기록이 없습니다.{!canReadSalary && <><br /><span className="vr-warn">급여 권한이 없으면 일용 기록이 보이지 않아 신고서에서도 빠집니다.</span></>}</div>
       ) : (
         <div className="stg-table-wrap vr-scroll">
           <table className="ev-table ev-lined table-inv-status-sm">
@@ -709,7 +711,7 @@ export default function TaxFilingPage() {
             </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
               <MonthSelect className="inv-input fin-close-month" value={month} onChange={(v) => v && setMonth(v)} ariaLabel="지급월" />
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={dueOf(month)} done={taxChecked.has(`wht-${dueOf(month)}`)} doneInfo={taxChecked.get(`wht-${dueOf(month)}`)} onToggle={(on) => toggleChecked(`wht-${dueOf(month)}`, on)} /> · 홈택스</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={dueOf(month)} done={taxChecked.has(`wht-${dueOf(month)}`)} doneInfo={taxChecked.get(`wht-${dueOf(month)}`)} onToggle={isAdvisor ? undefined : (on) => toggleChecked(`wht-${dueOf(month)}`, on)} /> · 홈택스</span>
             </QueryBar>
             <ResultStrip>
               <Stat label="인원" value={`${T.sum.n}명${T.biz.n ? ` (사업소득 ${T.biz.n})` : ""}${T.ret.n ? ` (퇴직 ${T.ret.n})` : ""}`} />
@@ -736,7 +738,7 @@ export default function TaxFilingPage() {
               <select value={vatDoc} onChange={(e) => setVatDoc(e.target.value as VatDocKey)} className="qk-input h-8 px-2.5 text-xs" aria-label="서류">
                 {VAT_DOCS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
               </select>
-              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={vatDueDate(year, vatPeriod)} done={taxChecked.has(`vat-${vatDueDate(year, vatPeriod)}`)} doneInfo={taxChecked.get(`vat-${vatDueDate(year, vatPeriod)}`)} onToggle={(on) => toggleChecked(`vat-${vatDueDate(year, vatPeriod)}`, on)} /> · 홈택스</span>
+              <span className="text-[11px] text-[var(--text-dim)]">신고·납부 기한 <DueDate d={vatDueDate(year, vatPeriod)} done={taxChecked.has(`vat-${vatDueDate(year, vatPeriod)}`)} doneInfo={taxChecked.get(`vat-${vatDueDate(year, vatPeriod)}`)} onToggle={isAdvisor ? undefined : (on) => toggleChecked(`vat-${vatDueDate(year, vatPeriod)}`, on)} /> · 홈택스</span>
             </QueryBar>
           )}
           {tab === "cit" && (<>
@@ -750,7 +752,7 @@ export default function TaxFilingPage() {
               <select value={year} onChange={(e) => setYear(Number(e.target.value))} className="qk-input h-8 px-2.5 text-xs" aria-label="사업연도">
                 {years.map((y) => <option key={y} value={y}>{y}년</option>)}
               </select>
-              <span className="text-[11px] text-[var(--text-dim)]" title="12월 결산 법인 기준">신고·납부 기한 <DueDate d={`${year + 1}-03-31`} done={taxChecked.has(`cit-${year + 1}-03-31`)} doneInfo={taxChecked.get(`cit-${year + 1}-03-31`)} onToggle={(on) => toggleChecked(`cit-${year + 1}-03-31`, on)} /> · 지방소득세 <DueDate d={`${year + 1}-04-30`} done={taxChecked.has(`cit-local-${year + 1}-04-30`)} doneInfo={taxChecked.get(`cit-local-${year + 1}-04-30`)} onToggle={(on) => toggleChecked(`cit-local-${year + 1}-04-30`, on)} /></span>
+              <span className="text-[11px] text-[var(--text-dim)]" title="12월 결산 법인 기준">신고·납부 기한 <DueDate d={`${year + 1}-03-31`} done={taxChecked.has(`cit-${year + 1}-03-31`)} doneInfo={taxChecked.get(`cit-${year + 1}-03-31`)} onToggle={isAdvisor ? undefined : (on) => toggleChecked(`cit-${year + 1}-03-31`, on)} /> · 지방소득세 <DueDate d={`${year + 1}-04-30`} done={taxChecked.has(`cit-local-${year + 1}-04-30`)} doneInfo={taxChecked.get(`cit-local-${year + 1}-04-30`)} onToggle={isAdvisor ? undefined : (on) => toggleChecked(`cit-local-${year + 1}-04-30`, on)} /></span>
             </QueryBar>
             <ResultStrip>
               <Stat label="수익" value={won(citStmt?.totals.ytdRevenue || 0)} />
