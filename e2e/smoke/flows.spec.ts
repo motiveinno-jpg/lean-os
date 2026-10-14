@@ -68,6 +68,63 @@ test("파일보관함 암호화 — 암호화해서 올리기 → 저장본은 �
   expect(await storageText("document-files", after.storage_path), "풀린 저장본은 원문").toBe(secret);
 });
 
+test("파일보관함 폴더 암호화 — 폴더 암호화 → 안 파일·새 파일 암호화 → 다시 묻지 않고 열기 → 해제", async ({ page }) => {
+  const info = await openPage(page, "/documents/");
+  await expectHealthy(page, "/documents/", info);
+  const folder = `${SMOKE_TAG} 암호화 폴더 ${stamp()}`;
+  const pw = "smoke-folder-pass-1";
+  await page.getByRole("button", { name: "새 폴더", exact: true }).click();
+  await page.getByLabel("새 폴더 이름").fill(folder);
+  await page.getByLabel("새 폴더 이름").press("Enter");
+  const frow = page.locator(".vx-row-folder", { hasText: folder });
+  await expect(frow).toBeVisible({ timeout: 20_000 });
+  await frow.click();
+  await expect(page.locator(".vx-crumb-last")).toHaveText(folder, { timeout: 15_000 });
+  const before = `SMOKE-BEFORE-${Date.now()}`;
+  await page.getByLabel("올릴 파일 고르기", { exact: true }).setInputFiles({ name: `${SMOKE_TAG}-before.txt`, mimeType: "text/plain", buffer: Buffer.from(before) });
+  await expect(page.locator(".vx-row", { hasText: `${SMOKE_TAG}-before.txt` })).toBeVisible({ timeout: 30_000 });
+
+  //   상위로 나가 폴더 메뉴에서 암호화
+  await page.getByRole("button", { name: "상위 폴더로" }).click();
+  await frow.getByRole("button", { name: `${folder} 폴더 메뉴` }).click();
+  await page.getByRole("menuitem", { name: "폴더 암호화하기" }).click();
+  await page.getByPlaceholder("비밀번호 (8자 이상)").fill(pw);
+  await page.getByPlaceholder("비밀번호 다시 입력").fill(pw);
+  await page.getByRole("button", { name: "암호화하기", exact: true }).click();
+  await expect(frow.locator(".vx-lock-mark"), "폴더에 암호화 표시").toBeVisible({ timeout: 30_000 });
+  const [fo] = await rest(`document_folders?company_id=eq.${QA_COMPANY}&name=eq.${encodeURIComponent(folder)}&select=id,encryption`);
+  expect(fo.encryption, "폴더 확인값").toBeTruthy();
+  expect(JSON.stringify(fo.encryption), "확인값에 비밀번호가 없어야 한다").not.toContain(pw);
+  const [bf] = await rest(`document_files?folder_id=eq.${fo.id}&file_name=eq.${SMOKE_TAG}-before.txt&select=storage_path,encryption`);
+  expect(bf.encryption, "있던 파일이 암호화돼야 한다").toBeTruthy();
+  expect(await storageText("document-files", bf.storage_path), "저장본에 원문 없음").not.toContain(before);
+
+  //   새로 올리는 파일 — 비밀번호를 이미 맞혔으니 묻지 않고 암호화된다
+  await frow.click();
+  await expect(page.locator(".vx-hint"), "암호화 폴더 안내").toContainText("암호화 폴더", { timeout: 15_000 });
+  const after = `SMOKE-AFTER-${Date.now()}`;
+  await page.getByLabel("올릴 파일 고르기", { exact: true }).setInputFiles({ name: `${SMOKE_TAG}-after.txt`, mimeType: "text/plain", buffer: Buffer.from(after) });
+  const arow = page.locator(".vx-row", { hasText: `${SMOKE_TAG}-after.txt` });
+  await expect(arow.locator(".vx-lock-mark"), "새 파일도 암호화 표시").toBeVisible({ timeout: 30_000 });
+  const [af] = await rest(`document_files?folder_id=eq.${fo.id}&file_name=eq.${SMOKE_TAG}-after.txt&select=storage_path,encryption`);
+  expect(af.encryption, "새 파일 암호화").toBeTruthy();
+  expect(await storageText("document-files", af.storage_path)).not.toContain(after);
+  const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 30_000 }), arow.locator(".vx-file-title").click()]);
+  const { readFile } = await import("node:fs/promises");
+  expect(await readFile(await dl.path()), "다시 묻지 않고 원문으로 열린다").toEqual(Buffer.from(after));
+
+  //   해제 → 원본으로
+  await page.getByRole("button", { name: "상위 폴더로" }).click();
+  await frow.getByRole("button", { name: `${folder} 폴더 메뉴` }).click();
+  await page.getByRole("menuitem", { name: "폴더 암호화 해제" }).click();
+  await page.getByPlaceholder("비밀번호", { exact: true }).fill(pw);
+  await page.getByRole("button", { name: "암호화 해제", exact: true }).click();
+  await expect(frow.locator(".vx-lock-mark"), "폴더 암호화 표시가 사라져야 한다").toHaveCount(0, { timeout: 30_000 });
+  const plain = await rest(`document_files?folder_id=eq.${fo.id}&select=file_name,storage_path,encryption`);
+  expect(plain.every((x: { encryption: unknown }) => x.encryption === null), "폴더 안 파일이 모두 원본").toBe(true);
+  expect(await storageText("document-files", plain.find((x: { file_name: string }) => x.file_name === `${SMOKE_TAG}-after.txt`).storage_path)).toBe(after);
+});
+
 test("거래처 — 등록 성공, 같은 사업자번호 재등록은 이유가 보이게 거절", async ({ page }) => {
   const info = await openPage(page, "/partners/");
   await expectHealthy(page, "/partners/", info);

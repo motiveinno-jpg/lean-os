@@ -7556,6 +7556,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           created_by: string | null
+          encryption: Json | null
           id: string
           name: string
           parent_id: string | null
@@ -7568,6 +7569,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           created_by?: string | null
+          encryption?: Json | null
           id?: string
           name: string
           parent_id?: string | null
@@ -7580,6 +7582,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           created_by?: string | null
+          encryption?: Json | null
           id?: string
           name?: string
           parent_id?: string | null

@@ -21,12 +21,15 @@ import {
   uploadFile, createFolder, getFolders, deleteFolder, moveFilesToFolder, searchFiles, deleteFile,
   downloadStoredFile, updateFolderVisibility, getFileVersions, getFolderFileCounts, type FolderVisibility,
   lockVaultFile, unlockVaultFile, downloadLockedFile,
+  lockVaultFolder, unlockVaultFolder, checkVaultFolderPassword,
 } from "@/lib/file-storage";
 import { lockPasswordProblem } from "@/lib/vault-crypto";
 
 type Folder = {
   id: string; name: string; parent_id: string | null; created_at: string; created_by: string | null;
   visibility: FolderVisibility | null; target_user_ids: string[] | null; target_departments: string[] | null;
+  /** 폴더 암호화 확인값 — 있으면 이 폴더와 하위 폴더 안 파일은 모두 폴더 비밀번호로 암호화된다 */
+  encryption?: unknown | null;
 };
 type VFile = {
   id: string; file_name: string; file_url: string; file_size: number | null; folder_id: string | null;
@@ -38,7 +41,11 @@ type VFile = {
 type PwAsk =
   | { mode: "upload"; files: File[] }
   | { mode: "open"; file: { id: string; file_name: string } }
-  | { mode: "lock" | "unlock"; file: VFile };
+  | { mode: "lock" | "unlock"; file: VFile }
+  | { mode: "folderLock"; folder: Folder }
+  | { mode: "folderUnlock"; folder: Folder }
+  //   암호화 폴더 비밀번호 확인 후 이어서 할 일(올리기·열기·옮기기)
+  | { mode: "folderPw"; folder: Folder; purpose: string; then: (pw: string) => Promise<void> };
 
 const ROOT = null;
 const VIS_LABEL: Record<FolderVisibility, string> = { company: "회사 전체", departments: "부서", members: "사람", private: "나만" };
@@ -92,6 +99,8 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   const [pw2, setPw2] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
   const [pwErr, setPwErr] = useState("");
+  //   한 번 맞힌 폴더 비밀번호 — 이 화면을 떠나면 사라진다(메모리에만, 저장 안 함)
+  const folderPwRef = useRef<Map<string, string>>(new Map());
 
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 250); return () => clearTimeout(t); }, [query]);
   useEffect(() => { if (!menuFor) return; const close = () => setMenuFor(null); window.addEventListener("click", close); return () => window.removeEventListener("click", close); }, [menuFor]);
@@ -167,6 +176,13 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
     return out;
   };
   const topOf = (f: Folder) => pathTo(f.id)[0] ?? f;
+  //   이 폴더(자신 포함 위로)의 암호화 폴더 — 암호화 폴더 안에 또 암호화 폴더는 없다(DB 규칙)
+  const lockedRootOf = (folderId: string | null): Folder | undefined => pathTo(folderId).find((f) => !!f.encryption);
+  const subtreeOf = (id: string): string[] => {
+    const out = [id];
+    for (let i = 0; i < out.length && i < 5000; i++) for (const c of children.get(out[i]) || []) out.push(c.id);
+    return out;
+  };
   const flatFolders = useMemo(() => {
     const out: { id: string; label: string }[] = [];
     const walk = (pid: string | null, depth: number) => {
@@ -245,7 +261,13 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
 
   // ── 올리기 — 지금 폴더로(맨 위면 폴더 밖) ──
   const uploadedRef = useRef<WeakSet<File>>(new WeakSet());
-  const uploadMany = async (list: File[], lockPassword?: string) => {
+  const uploadMany = async (list: File[], lockPassword?: string): Promise<void> => {
+    //   암호화 폴더 안이면 폴더 비밀번호로 — 처음이면 비밀번호부터 확인한다
+    const root = lockedRootOf(current);
+    if (root && !lockPassword) {
+      if (!list.length) return;
+      return withFolderPw(root, `파일 ${list.length}개를 「${root.name}」 폴더 비밀번호로 암호화해서 올립니다.`, (p) => uploadMany(list, p));
+    }
     const files = list.filter((f) => !uploadedRef.current.has(f));
     if (!files.length) return;
     const failed: string[] = [];
@@ -267,11 +289,30 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
 
   // ── 잠금 — 잠긴 파일은 누르면 비밀번호부터 묻는다 ──
   const askPw = (a: PwAsk) => { setPwAsk(a); setPw(""); setPw2(""); setPwErr(""); setMenuFor(null); };
-  const getFile = (f: { id: string; file_name: string; file_url: string; encryption?: unknown | null }, name = f.file_name) => {
-    if (f.encryption) askPw({ mode: "open", file: { id: f.id, file_name: name } });
-    else void downloadStoredFile(f.file_url, name);
+  //   폴더 비밀번호가 있으면 바로, 없으면 물어서 맞힌 뒤 이어서 한다
+  const withFolderPw = async (folder: Folder, purpose: string, then: (pw: string) => Promise<void>): Promise<void> => {
+    const known = folderPwRef.current.get(folder.id);
+    if (known) return then(known);
+    askPw({ mode: "folderPw", folder, purpose, then });
   };
-  const needsNewPw = pwAsk?.mode === "upload" || pwAsk?.mode === "lock";
+  const getFile = (f: { id: string; file_name: string; file_url: string; encryption?: unknown | null; folder_id?: string | null }, name = f.file_name, folderId: string | null = f.folder_id ?? null) => {
+    if (!f.encryption) { void downloadStoredFile(f.file_url, name); return; }
+    const file = { id: f.id, file_name: name };
+    const root = lockedRootOf(folderId);
+    //   폴더 비밀번호로 먼저 열어 보고, 따로 다른 비밀번호로 암호화된 파일이면 그 비밀번호를 묻는다
+    if (root) {
+      void withFolderPw(root, `「${name}」을(를) 엽니다.`, async (p) => {
+        try { await downloadLockedFile(file, p); }
+        catch (e) {
+          if ((e as Error)?.name !== "WrongPasswordError") throw e;
+          askPw({ mode: "open", file }); setPwErr("이 파일은 폴더와 다른 비밀번호로 암호화돼 있습니다.");
+        }
+      }).catch((e) => toast(errText(e, "열지 못했습니다"), "error"));
+      return;
+    }
+    askPw({ mode: "open", file });
+  };
+  const needsNewPw = pwAsk?.mode === "upload" || pwAsk?.mode === "lock" || pwAsk?.mode === "folderLock";
   const submitPw = async () => {
     if (!pwAsk || pwBusy) return;
     const problem = needsNewPw ? lockPasswordProblem(pw, pw2) : (pw ? null : "비밀번호를 넣어 주세요.");
@@ -289,6 +330,24 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
         const r = await lockVaultFile(pwAsk.file.id, pw, { companyId, userId });
         setPwAsk(null); refreshFiles(); qc.invalidateQueries({ queryKey: ["file-versions"] });
         toast(r.locked > 1 ? `암호화했습니다 (지난 판 포함 ${r.locked}개)` : "암호화했습니다", "success");
+      } else if (pwAsk.mode === "folderPw") {
+        if (!(await checkVaultFolderPassword(pwAsk.folder.encryption, pw))) { setPwErr("비밀번호가 맞지 않습니다."); return; }
+        folderPwRef.current.set(pwAsk.folder.id, pw);
+        const then = pwAsk.then;
+        setPwAsk(null);
+        await then(pw);
+      } else if (pwAsk.mode === "folderLock") {
+        const f = pwAsk.folder;
+        const r = await lockVaultFolder(f.id, subtreeOf(f.id), pw, { companyId, userId, canLockOthers: canDeleteOthers });
+        folderPwRef.current.set(f.id, pw);
+        setPwAsk(null); refreshFiles(); refreshFolders(); qc.invalidateQueries({ queryKey: ["file-versions"] });
+        toast(`「${f.name}」 폴더를 암호화했습니다${r.locked ? ` (파일 ${r.locked}개)` : ""}${r.alreadyLocked ? ` · 이미 따로 암호화돼 있던 ${r.alreadyLocked}개는 원래 비밀번호 그대로` : ""}`, "success");
+      } else if (pwAsk.mode === "folderUnlock") {
+        const f = pwAsk.folder;
+        const r = await unlockVaultFolder(f.id, subtreeOf(f.id), f.encryption, pw, { companyId, userId });
+        folderPwRef.current.delete(f.id);
+        setPwAsk(null); refreshFiles(); refreshFolders(); qc.invalidateQueries({ queryKey: ["file-versions"] });
+        toast(r.wrong > 0 ? `폴더 암호화를 해제했습니다. 다른 비밀번호로 암호화된 파일 ${r.wrong}개는 그대로 남았습니다` : `「${f.name}」 폴더 암호화를 해제했습니다`, r.wrong > 0 ? "info" : "success");
       } else {
         const r = await unlockVaultFile(pwAsk.file.id, pw, { companyId, userId });
         setPwAsk(null); refreshFiles(); qc.invalidateQueries({ queryKey: ["file-versions"] });
@@ -301,11 +360,21 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   };
 
   // ── 고른 파일 옮기기·지우기 ──
-  const moveSelected = async () => {
+  const moveSelected = async (folderPassword?: string): Promise<void> => {
     if (!moveTarget || !selectedIds.size) return;
+    const target = moveTarget === "__root" ? null : moveTarget;
+    //   암호화 폴더로 옮기면 암호화 안 된 파일은 폴더 비밀번호로 먼저 암호화한다(DB 가 암호화 안 된 파일을 거절한다)
+    const root = lockedRootOf(target);
+    if (root && !folderPassword) {
+      return withFolderPw(root, `고른 파일을 「${root.name}」 폴더로 옮기며 폴더 비밀번호로 암호화합니다.`, (p) => moveSelected(p));
+    }
     setMoving(true);
     try {
-      const target = moveTarget === "__root" ? null : moveTarget;
+      if (root && folderPassword) {
+        for (const f of shownFiles.filter((x) => selectedIds.has(x.id) && !x.encryption)) {
+          await lockVaultFile(f.id, folderPassword, { companyId, userId });
+        }
+      }
       const r = await moveFilesToFolder([...selectedIds], target, companyId);
       const where = target ? `"${byId.get(target)?.name || "폴더"}"` : "폴더 밖(맨 위)";
       if (r.failed.length) toast(`${r.moved}개는 ${where}(으)로 옮겼고 ${r.failed.length}개는 실패했습니다: ${r.failed.slice(0, 3).join(", ")}${r.failed.length > 3 ? " …" : ""}`, "error");
@@ -361,6 +430,9 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
             ) : (
               <span className="vx-menu-note">공개 범위는 맨 위 폴더 「{topOf(f).name}」를 따릅니다</span>
             )}
+            {f.encryption
+              ? <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "folderUnlock", folder: f })}>폴더 암호화 해제</button>
+              : !lockedRootOf(f.parent_id) && <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "folderLock", folder: f })}>폴더 암호화하기</button>}
             <button type="button" role="menuitem" className="vx-menu-item vx-menu-danger" onClick={() => { setMenuFor(null); void removeFolder(f); }}>폴더 삭제</button>
           </div>
         )}
@@ -370,7 +442,8 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
 
   //   파일 메뉴 — 잠그기·잠금 풀기는 올린 사람이나 삭제 권한자만(DB 트리거도 같은 기준으로 막는다)
   const fileMenu = (f: VFile) => {
-    if (!canDeleteFile(f)) return null;
+    //   암호화 폴더 안 파일은 폴더 단위로만 — 따로 해제하면 DB 가 거절한다
+    if (!canDeleteFile(f) || lockedRootOf(f.folder_id)) return null;
     const key = `file:${f.id}`;
     return (
       <div className="vx-menu-wrap" onClick={(e) => e.stopPropagation()}>
@@ -386,7 +459,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
     );
   };
   const lockMark = (f: { encryption?: unknown | null }) => f.encryption
-    ? <span className="vx-lock-mark" title="암호화된 파일 · 비밀번호를 알아야 열립니다"><Lock size={13} strokeWidth={2.4} aria-label="암호화됨" /></span>
+    ? <span className="vx-lock-mark" title="암호화됨 · 비밀번호를 알아야 열립니다"><Lock size={13} strokeWidth={2.4} aria-label="암호화됨" /></span>
     : null;
 
   const verLabel = (f: VFile) => Number(f.version || 1) > 1
@@ -409,7 +482,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
             ) : <span className="vx-tree-spacer" />}
             <button type="button" className="vx-tree-open" title={f.name} onClick={() => open(f.id)}>
               <FolderGlyph size={18} />
-              <span className="vx-tree-name">{f.name}</span>
+              <span className="vx-tree-name">{f.name}</span>{lockMark(f)}
               {f.visibility && f.visibility !== "company" && !f.parent_id && <span className="vx-vis-dot" title={`공개 범위: ${VIS_LABEL[f.visibility]}`}>{f.visibility === "private" ? "🔒" : "👥"}</span>}
             </button>
           </div>
@@ -491,7 +564,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
             <Lock size={15} strokeWidth={2.4} />암호화해서 올리기
           </button>
           <input ref={fileInputRef} type="file" multiple hidden aria-label="올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; void uploadMany(l); }} />
-          <input ref={lockInputRef} type="file" multiple hidden aria-label="암호화해서 올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; if (l.length) askPw({ mode: "upload", files: l }); }} />
+          <input ref={lockInputRef} type="file" multiple hidden aria-label="암호화해서 올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; if (!l.length) return; if (lockedRootOf(current)) void uploadMany(l); else askPw({ mode: "upload", files: l }); }} />
         </div>
 
         <div className={dragOver ? "vx-box vx-box-drop" : "vx-box"}
@@ -508,7 +581,9 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               {summary}
               {upProg && <span className="vx-progress">{upProg.name} 올리는 중 <b className="mono-number">{upProg.pct}%</b></span>}
             </div>
-            <div className="vx-hint">{searching ? "결과를 누르면 그 폴더로 갑니다" : "폴더를 누르면 안으로 들어갑니다"}</div>
+            <div className="vx-hint">{searching ? "결과를 누르면 그 폴더로 갑니다"
+              : lockedRootOf(current) ? <>{lockMark({ encryption: true })}암호화 폴더 · 올리는 파일은 모두 폴더 비밀번호로 암호화됩니다</>
+              : "폴더를 누르면 안으로 들어갑니다"}</div>
           </div>
 
           {view === "list" ? (
@@ -525,7 +600,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                       <span className="vx-chk-space" />
                       <FolderGlyph size={22} />
                       <div className="vx-name-stack">
-                        <span className="vx-folder-title" title={f.name}>{f.name}</span>
+                        <span className="vx-folder-title" title={f.name}>{lockMark(f)}{f.name}</span>
                         {searching && <span className="vx-sub">{locOf(f.parent_id)}</span>}
                       </div>
                     </div>
@@ -591,7 +666,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                   <div key={f.id} role="button" tabIndex={0} className="vx-card" onClick={() => open(f.id)} onKeyDown={(e) => { if (e.key === "Enter") open(f.id); }}>
                     <div className="vx-card-menu">{folderMenu(f)}</div>
                     <FolderGlyph size={64} />
-                    <span className="vx-card-title" title={f.name}>{f.name}</span>
+                    <span className="vx-card-title" title={f.name}>{lockMark(f)}{f.name}</span>
                     <span className="vx-sub">{searching ? locOf(f.parent_id) : folderSub(f)}</span>
                   </div>
                 ))}
@@ -698,7 +773,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                 <b className="mono-number">v{v.version}</b>{lockMark(v)}
                 <span className="mono-number vx-dim">{String(v.created_at || "").slice(0, 10)}</span>
                 <span className="mono-number vx-dim">{fmtSize(Number(v.file_size || 0))}</span>
-                <button type="button" className="btn-secondary btn-sm vx-ver-get" onClick={() => getFile(v, `${v.file_name.replace(/(\.[^.]+)?$/, ` (v${v.version})$1`)}`)}>내려받기</button>
+                <button type="button" className="btn-secondary btn-sm vx-ver-get" onClick={() => getFile(v, `${v.file_name.replace(/(\.[^.]+)?$/, ` (v${v.version})$1`)}`, verFile.folder_id)}>내려받기</button>
               </div>
             ))}
             <div className="phv3-modal-actions">
@@ -716,10 +791,16 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               {pwAsk.mode === "upload" ? `암호화해서 올리기 · 파일 ${pwAsk.files.length}개`
                 : pwAsk.mode === "open" ? `"${pwAsk.file.file_name}" 열기`
                 : pwAsk.mode === "lock" ? `"${pwAsk.file.file_name}" 암호화하기`
+                : pwAsk.mode === "folderLock" ? `「${pwAsk.folder.name}」 폴더 암호화하기`
+                : pwAsk.mode === "folderUnlock" ? `「${pwAsk.folder.name}」 폴더 암호화 해제`
+                : pwAsk.mode === "folderPw" ? `「${pwAsk.folder.name}」 폴더 비밀번호`
                 : `"${pwAsk.file.file_name}" 암호화 해제`}
             </h3>
             <p className="phv3-modal-desc">
-              {pwAsk.mode === "open" ? "비밀번호를 넣으면 이 브라우저 안에서 풀어서 내려받습니다."
+              {pwAsk.mode === "folderPw" ? `${pwAsk.purpose} 한 번 맞히면 이 화면을 떠날 때까지 다시 묻지 않습니다.`
+                : pwAsk.mode === "folderLock" ? "폴더와 하위 폴더 안 파일을 모두 이 비밀번호로 암호화하고, 앞으로 이 폴더에 올리는 파일도 자동으로 암호화합니다. 파일·폴더 이름은 목록에 그대로 보입니다."
+                : pwAsk.mode === "folderUnlock" ? "폴더 안 파일을 원본으로 다시 저장합니다. 이 폴더를 볼 수 있는 사람은 누구나 열 수 있게 됩니다."
+                : pwAsk.mode === "open" ? "비밀번호를 넣으면 이 브라우저 안에서 풀어서 내려받습니다."
                 : pwAsk.mode === "unlock" ? "암호화를 해제하면 원본으로 다시 저장돼, 이 폴더를 볼 수 있는 사람은 누구나 열 수 있습니다. 지난 판도 같이 해제됩니다."
                 : `이 비밀번호를 아는 사람만 열 수 있습니다.${pwAsk.mode === "lock" && Number(pwAsk.file.version || 1) > 1 ? " 지난 판도 같이 암호화됩니다." : ""} 파일 이름·크기는 목록에 그대로 보입니다.`}
             </p>
@@ -739,7 +820,8 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
               <div className="phv3-modal-actions">
                 <button type="button" className="btn-secondary btn-sm" disabled={pwBusy} onClick={() => setPwAsk(null)}>취소</button>
                 <button type="submit" className="btn-primary btn-sm" disabled={pwBusy}>
-                  {pwBusy ? "처리 중…" : pwAsk.mode === "upload" ? "암호화해서 올리기" : pwAsk.mode === "open" ? "열기" : pwAsk.mode === "lock" ? "암호화하기" : "암호화 해제"}
+                  {pwBusy ? "처리 중…" : pwAsk.mode === "upload" ? "암호화해서 올리기" : pwAsk.mode === "open" ? "열기"
+                    : pwAsk.mode === "lock" || pwAsk.mode === "folderLock" ? "암호화하기" : pwAsk.mode === "folderPw" ? "확인" : "암호화 해제"}
                 </button>
               </div>
             </form>

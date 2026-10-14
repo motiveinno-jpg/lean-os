@@ -42,3 +42,13 @@ describe("vault-crypto", () => {
     expect(lockPasswordProblem("longenough", "longenough")).toBeNull();
   });
 });
+
+describe("vault-crypto 폴더 비밀번호", () => {
+  it("맞는 비밀번호만 통과하고, 확인값에 비밀번호가 드러나지 않는다", async () => {
+    const { makeFolderLock, checkFolderPassword } = await import("../vault-crypto");
+    const meta = await makeFolderLock("folder-pass-1");
+    expect(JSON.stringify(meta)).not.toContain("folder-pass-1");
+    expect(await checkFolderPassword(meta, "folder-pass-1")).toBe(true);
+    expect(await checkFolderPassword(meta, "folder-pass-2")).toBe(false);
+  });
+});

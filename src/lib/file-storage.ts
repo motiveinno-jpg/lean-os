@@ -12,7 +12,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from "@/lib/supabase";
 import { assertStorageQuota } from "@/lib/storage-quota";
 import { logAudit } from "./audit";
-import { lockBytes, unlockBytes, type VaultLockMeta } from "./vault-crypto";
+import { lockBytes, unlockBytes, makeFolderLock, checkFolderPassword, type VaultLockMeta, type VaultFolderLockMeta } from "./vault-crypto";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -520,14 +520,26 @@ async function replaceObject(row: LockRow, body: Uint8Array | ArrayBuffer, ext: 
   await supabase.storage.from(bucket).remove([oldPath]).catch(() => {});
 }
 
+async function lockRow(r: LockRow, password: string): Promise<void> {
+  const plain = await downloadObject(r.bucket || "document-files", r.storage_path!);
+  const { data, meta } = await lockBytes(plain, password, r.mime_type || "");
+  await replaceObject(r, data, "locked", "application/octet-stream", meta);
+}
+
+/** 풀면 true, 비밀번호가 다르면 false */
+async function unlockRow(r: LockRow, password: string): Promise<boolean> {
+  const enc = await downloadObject(r.bucket || "document-files", r.storage_path!);
+  let plain: ArrayBuffer;
+  try { plain = await unlockBytes(enc, password, r.encryption!.iter); }
+  catch (e) { if ((e as Error)?.name === "WrongPasswordError") return false; throw e; }
+  await replaceObject(r, plain, getExtension(r.file_name), r.encryption!.mime || r.mime_type || "application/octet-stream", null);
+  return true;
+}
+
 /** 파일(지난 판 포함)을 잠근다. 이미 잠긴 판은 그대로 둔다. */
 export async function lockVaultFile(fileId: string, password: string, ctx: { companyId: string; userId: string }): Promise<{ locked: number }> {
   const rows = (await lockFamily(fileId)).filter((r) => !r.encryption && r.storage_path);
-  for (const r of rows) {
-    const plain = await downloadObject(r.bucket || "document-files", r.storage_path!);
-    const { data, meta } = await lockBytes(plain, password, r.mime_type || "");
-    await replaceObject(r, data, "locked", "application/octet-stream", meta);
-  }
+  for (const r of rows) await lockRow(r, password);
   logAudit({ companyId: ctx.companyId, userId: ctx.userId, entityType: "file", entityId: fileId, action: "file_locked", afterJson: { versions: rows.length } }).catch(() => {});
   return { locked: rows.length };
 }
@@ -536,16 +548,56 @@ export async function lockVaultFile(fileId: string, password: string, ctx: { com
 export async function unlockVaultFile(fileId: string, password: string, ctx: { companyId: string; userId: string }): Promise<{ unlocked: number; wrong: number }> {
   const rows = (await lockFamily(fileId)).filter((r) => r.encryption && r.storage_path);
   let unlocked = 0, wrong = 0;
-  for (const r of rows) {
-    const enc = await downloadObject(r.bucket || "document-files", r.storage_path!);
-    let plain: ArrayBuffer;
-    try { plain = await unlockBytes(enc, password, r.encryption!.iter); }
-    catch (e) { if ((e as Error)?.name === "WrongPasswordError") { wrong++; continue; } throw e; }
-    await replaceObject(r, plain, getExtension(r.file_name), r.encryption!.mime || r.mime_type || "application/octet-stream", null);
-    unlocked++;
-  }
+  for (const r of rows) { if (await unlockRow(r, password)) unlocked++; else wrong++; }
   if (unlocked === 0 && wrong > 0) throw new Error("비밀번호가 맞지 않습니다.");
   logAudit({ companyId: ctx.companyId, userId: ctx.userId, entityType: "file", entityId: fileId, action: "file_unlocked", afterJson: { versions: unlocked, wrong } }).catch(() => {});
+  return { unlocked, wrong };
+}
+
+// ── 1c. 폴더 암호화 — 폴더(와 하위 폴더) 안 파일을 모두 폴더 비밀번호로 ──
+//   DB 가 순서를 강제한다: 암호화는 파일 먼저 → 폴더 표시, 해제는 폴더 표시 먼저 → 파일(마이그 20261014180000).
+
+async function subtreeRows(folderIds: string[], companyId: string): Promise<(LockRow & { uploaded_by: string | null })[]> {
+  if (!folderIds.length) return [];
+  const { data, error } = await db.from("document_files")
+    .select("id, file_name, storage_path, bucket, mime_type, encryption, version, uploaded_by")
+    .eq("company_id", companyId).in("folder_id", folderIds).limit(5000);
+  if (error) throw error;
+  return (data || []) as unknown as (LockRow & { uploaded_by: string | null })[];
+}
+
+/** 폴더를 암호화한다. 이미 암호화된 파일(다른 비밀번호일 수 있음)은 그대로 두고 개수를 알려 준다.
+ *  folderIds = 이 폴더와 모든 하위 폴더 id. 남이 올린 파일을 암호화할 권한이 없으면 시작 전에 멈춘다. */
+export async function lockVaultFolder(folderId: string, folderIds: string[], password: string,
+  ctx: { companyId: string; userId: string; canLockOthers: boolean }): Promise<{ locked: number; alreadyLocked: number }> {
+  const rows = await subtreeRows(folderIds, ctx.companyId);
+  const plain = rows.filter((r) => !r.encryption && r.storage_path);
+  if (!ctx.canLockOthers && plain.some((r) => r.uploaded_by !== ctx.userId)) {
+    throw new Error("폴더 안에 다른 사람이 올린 파일이 있어 암호화할 수 없습니다. 파일 삭제 권한이 있는 사람이 해 주세요.");
+  }
+  for (const r of plain) await lockRow(r, password);
+  const { error } = await db.from("document_folders").update({ encryption: (await makeFolderLock(password)) as never }).eq("id", folderId);
+  if (error) throw error;
+  logAudit({ companyId: ctx.companyId, userId: ctx.userId, entityType: "folder", entityId: folderId, action: "folder_locked", afterJson: { files: plain.length } }).catch(() => {});
+  return { locked: plain.length, alreadyLocked: rows.filter((r) => r.encryption).length };
+}
+
+/** 폴더 비밀번호가 맞는지 */
+export async function checkVaultFolderPassword(meta: unknown, password: string): Promise<boolean> {
+  return checkFolderPassword(meta as VaultFolderLockMeta, password);
+}
+
+/** 폴더 암호화 해제 — 폴더 비밀번호로 열리는 파일만 원본으로 되돌린다. 다른 비밀번호 파일은 암호화된 채로. */
+export async function unlockVaultFolder(folderId: string, folderIds: string[], meta: unknown, password: string,
+  ctx: { companyId: string; userId: string }): Promise<{ unlocked: number; wrong: number }> {
+  if (!(await checkFolderPassword(meta as VaultFolderLockMeta, password))) throw new Error("비밀번호가 맞지 않습니다.");
+  const { error } = await db.from("document_folders").update({ encryption: null }).eq("id", folderId);
+  if (error) throw error;
+  let unlocked = 0, wrong = 0;
+  for (const r of (await subtreeRows(folderIds, ctx.companyId)).filter((x) => x.encryption && x.storage_path)) {
+    if (await unlockRow(r, password)) unlocked++; else wrong++;
+  }
+  logAudit({ companyId: ctx.companyId, userId: ctx.userId, entityType: "folder", entityId: folderId, action: "folder_unlocked", afterJson: { files: unlocked, wrong } }).catch(() => {});
   return { unlocked, wrong };
 }
 

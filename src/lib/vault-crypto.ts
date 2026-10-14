@@ -74,3 +74,42 @@ export async function unlockBytes(locked: ArrayBuffer, password: string, iterati
     throw new WrongPasswordError();
   }
 }
+
+// ── 폴더 암호화 — 폴더 비밀번호 확인값 ──
+//   폴더에 올리는 파일은 각자 새 소금으로 암호화되므로(파일 하나가 새어도 다른 파일 키는 다르다) 폴더에는 키가 아니라
+//   '이 비밀번호가 맞나'만 확인할 값을 둔다: 확인 문구를 폴더 비밀번호 키로 암호화한 것. 맞으면 풀리고 틀리면 GCM 이 거절한다.
+//   이게 없으면 올릴 때 비밀번호를 잘못 친 파일이 폴더 비밀번호로 영영 안 열린다.
+
+const FOLDER_CHECK = "OVLK-FOLDER-1";
+
+export type VaultFolderLockMeta = {
+  v: 1;
+  alg: "AES-GCM";
+  kdf: "PBKDF2-SHA256";
+  iter: number;
+  salt: string;   // base64
+  iv: string;     // base64
+  check: string;  // base64 — 확인 문구 암호문
+};
+
+const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u));
+const unb64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+
+export async function makeFolderLock(password: string): Promise<VaultFolderLockMeta> {
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_LEN));
+  const iv = crypto.getRandomValues(new Uint8Array(IV_LEN));
+  const key = await deriveKey(password, salt, LOCK_ITERATIONS);
+  const check = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv as BufferSource }, key, new TextEncoder().encode(FOLDER_CHECK)));
+  return { v: 1, alg: "AES-GCM", kdf: "PBKDF2-SHA256", iter: LOCK_ITERATIONS, salt: b64(salt), iv: b64(iv), check: b64(check) };
+}
+
+/** 폴더 비밀번호가 맞는지 — 맞으면 true, 틀리면 false */
+export async function checkFolderPassword(meta: VaultFolderLockMeta, password: string): Promise<boolean> {
+  const key = await deriveKey(password, unb64(meta.salt), meta.iter);
+  try {
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(meta.iv) as BufferSource }, key, unb64(meta.check) as BufferSource);
+    return new TextDecoder().decode(plain) === FOLDER_CHECK;
+  } catch {
+    return false;
+  }
+}
