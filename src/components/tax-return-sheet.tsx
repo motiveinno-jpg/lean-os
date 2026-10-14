@@ -17,7 +17,7 @@ import { useToast } from "@/components/toast";
 import { friendlyError } from "@/lib/friendly-error";
 import { listTaxReturns, latestClosed, closeTaxReturn, cancelTaxReturn, diffFigures, diffSources, type TaxReturnKind } from "@/lib/tax-returns";
 import { VAT_LINES, type FormFigures } from "@/lib/tax-forms/vat-form";
-import { WHT_LINES } from "@/lib/tax-forms/wht-form";
+import { WHT_LINES, REFUND_LINES } from "@/lib/tax-forms/wht-form";
 
 const won = (n: unknown) => Math.round(Number(n || 0)).toLocaleString("ko-KR");
 
@@ -191,6 +191,7 @@ export function TaxReturnSheet(p: Props) {
     const firstOf = (i: number) => i === 0 || WHT_LINES[i - 1].group !== WHT_LINES[i].group;
     const spanOf = (i: number) => { let n = 1; while (WHT_LINES[i + n] && WHT_LINES[i + n].group === WHT_LINES[i].group) n++; return n; };
     return (
+      <>
       <table className="rtf-table">
         <thead><tr><th colSpan={2}>소득자 소득 구분</th><th>코드</th><th>인원</th><th>총지급액</th><th>소득세 등</th></tr></thead>
         <tbody>
@@ -207,6 +208,19 @@ export function TaxReturnSheet(p: Props) {
           ))}
         </tbody>
       </table>
+        {/*   환급세액 조정 (2026-10-14 7단계) — ⑫는 지난달 신고본 ⑳에서, ⑬은 사람, 나머지는 계산 */}
+        <table className="rtf-table rtf-refund">
+          <thead><tr><th>환급세액 조정</th><th>세액</th></tr></thead>
+          <tbody>
+            {REFUND_LINES.map((l) => (
+              <tr key={l.code} className={`${l.code === "PAY" || l.code === "R20" ? "rtf-sum" : ""} ${filed && changed.includes(l.code) ? "rtf-row-chg" : ""}`}>
+                <td className="rtf-label">{l.label}{l.manual && <span className="rtf-src">{l.code === "R12" ? "지난달 신고본 ⑳에서 · 고칠 수 있음" : "직접 입력"}</span>}</td>
+                <td className="rtf-num">{l.manual && p.canWrite ? (showCompare ? <span><span className="rtf-orig">{won(filed!.figures?.[l.code]?.tax)}</span>{manualCell(l.code, "tax")}</span> : manualCell(l.code, "tax")) : cellVal(l.code, "tax")}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </>
     );
   };
 

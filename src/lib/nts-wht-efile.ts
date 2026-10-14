@@ -30,6 +30,8 @@ export type WhtEfileInput = {
   submitYm: string;     // 제출연월 YYYY-MM = 지급연월 + 1 (매월 정기: 지급연월 = 제출연월 - 1)
   madeOn: string;       // 작성일자 YYYY-MM-DD
   rows: WhtEfileRow[];
+  /** 환급세액 조정 (2026-10-14 세무 2차 7단계) — 없으면 전부 0(기본형) */
+  refund?: { r12: number; r13: number; r14: number; r15: number; r18: number; r19: number; r20: number };
 };
 
 const ym = (s: string) => s.replace(/-/g, "").slice(0, 6);
@@ -80,29 +82,44 @@ function headerRecord(i: WhtEfileInput): NtsField[] {
   ];
 }
 
-/** '22' 환급세액 조정(200) — 환급 없음 기본형: 전부 0 (문서: 값이 없어도 0으로 채운다) */
-function adjustRecord(): NtsField[] {
+/** '22' 환급세액 조정(200) — 값이 없어도 0으로 채운다(문서). 7단계: 전월 미환급·당월 조정·차월이월을 채운다 */
+function adjustRecord(f: NonNullable<WhtEfileInput["refund"]> = { r12: 0, r13: 0, r14: 0, r15: 0, r18: 0, r19: 0, r20: 0 }): NtsField[] {
   return [
     C("자료구분", 2, "22"),
     C("서식코드", 7, "C103900"),
-    N("(12)전월미환급세액", 15, 0),
-    N("(13)기환급신청세액", 15, 0),
-    N("(14)차감잔액", 15, 0),
-    N("(15)일반환급세액", 15, 0),
+    N("(12)전월미환급세액", 15, f.r12),
+    N("(13)기환급신청세액", 15, f.r13),
+    N("(14)차감잔액", 15, f.r14),
+    N("(15)일반환급세액", 15, f.r15),
     N("(16)신탁재산세액", 15, 0),
     N("(17)그밖의환급세액-금융회사등", 15, 0),
     N("(17)그밖의환급세액-합병등", 15, 0),
-    N("(18)조정대상환급세액", 15, 0),
-    N("(19)당월조정환급세액계", 15, 0),
-    N("(20)차월이월환급세액", 15, 0),
+    N("(18)조정대상환급세액", 15, f.r18),
+    N("(19)당월조정환급세액계", 15, f.r19),
+    N("(20)차월이월환급세액", 15, f.r20),
     N("(21)환급신청액", 15, 0),
     N("승계대상합계차월이월환급세액", 15, 0),
     C("공란", 11, ""),
   ];
 }
 
+/** 당월 조정 환급세액(⑲)을 소득코드에 나눠 적는다 — 세부 코드 순서대로 그 코드 징수세액까지 채우고, 가감계·총합계는 합 (7단계) */
+const LEAVES = ["A01", "A03", "A22", "A25", "A42", "A50", "A60"] as const;
+const GROUP: Record<string, readonly string[]> = { A10: ["A01", "A03"], A20: ["A22"], A30: ["A25"], A40: ["A42"] };
+export function allocateRefund(rows: WhtEfileRow[], r19: number): Record<string, number> {
+  const out: Record<string, number> = {};
+  let left = Math.max(0, r19);
+  for (const code of LEAVES) {
+    const row = rows.find((x) => x.code === code); if (!row || left <= 0) continue;
+    const take = Math.min(left, Math.max(0, row.tax)); out[code] = take; left -= take;
+  }
+  for (const [g, ks] of Object.entries(GROUP)) out[g] = ks.reduce((s, k) => s + (out[k] || 0), 0);
+  out.A99 = Math.max(0, r19) - left;
+  return out;
+}
+
 /** '23' 원천징수 명세 및 납부세액(150) — 소득코드 하나당 한 레코드 */
-function detailRecord(r: WhtEfileRow): NtsField[] {
+function detailRecord(r: WhtEfileRow, adj = 0): NtsField[] {
   return [
     C("자료구분", 2, "23"),
     C("서식코드", 7, "C103900"),
@@ -112,8 +129,8 @@ function detailRecord(r: WhtEfileRow): NtsField[] {
     N("(6)징수세액-소득세등", 15, r.tax),
     N("(7)징수세액-농특세", 15, 0),
     N("(8)가산세", 15, 0),
-    N("(9)당월조정환급세액", 15, 0),
-    N("(10)납부세액-소득세등", 15, r.tax),         // 조정환급·가산세 0 → 납부세액 = 징수세액
+    N("(9)당월조정환급세액", 15, adj),
+    N("(10)납부세액-소득세등", 15, r.tax - adj),   // 가산세 0 → 납부세액 = 징수세액 − 당월 조정 환급
     N("(11)납부세액-농특세", 15, 0),
     C("공란", 18, ""),
   ];
@@ -135,12 +152,13 @@ export function buildWhtEfile(i: WhtEfileInput): { bytes: Uint8Array | null; fil
     if (r.tax < 0) issues.push({ field: r.code, message: "이 화면의 기본형(정기·매월)에서 음수 세액은 지원하지 않습니다. 홈택스에서 직접" });
   }
   if (issues.length > 0) return { bytes: null, fileName: "", issues };
+  const adj = allocateRefund(rows, i.refund?.r19 || 0);
 
   //   레코드 길이는 규격 그대로 검증 — Header 400 · 조정 200 · 명세 150. 개별 길이가 달라 레코드별로 검증한다.
   const recs: { fields: NtsField[]; len: number }[] = [
     { fields: headerRecord(i), len: 400 },
-    { fields: adjustRecord(), len: 200 },
-    ...rows.map((r) => ({ fields: detailRecord(r), len: 150 })),
+    { fields: adjustRecord(i.refund), len: 200 },
+    ...rows.map((r) => ({ fields: detailRecord(r, adj[r.code] || 0), len: 150 })),
   ];
   const all: NtsIssue[] = [];
   const chunks: number[] = [];

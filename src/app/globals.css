@@ -11621,3 +11621,5 @@ table.tir-items-table { min-width: 640px; }
 /* 지원사업 회사 카드 · 개업일 국세청 확인 결과 */
 .sp-date-ok { @apply text-[11px] leading-4 font-semibold text-green-600; }
 .sp-date-bad { @apply text-[11px] leading-4 font-semibold text-[var(--danger)]; }
+/* 원천세 환급세액 조정 표 (2026-10-14 세무 2차 7단계) — 칸 둘이라 좁게 */
+.rtf-refund { @apply mt-3; min-width: 0; max-width: 560px; }

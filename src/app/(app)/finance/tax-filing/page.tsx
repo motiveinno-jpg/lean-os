@@ -34,6 +34,8 @@ import { QueryScreen, QueryHead, QueryBody, QueryBar, ResultStrip, Stat, ChipGro
 import { VatReturn, VAT_PERIODS, VAT_DOCS, vatFilingNow, vatDueDate, type VatPeriodKey, type VatDocKey } from "@/app/(app)/reports/vat/_components/VatReturn";
 import { computeStatements } from "@/lib/closing-snapshot";
 import { TaxReturnSheet } from "@/components/tax-return-sheet";
+import { listTaxReturns, latestClosed } from "@/lib/tax-returns";
+import type { FormFigures } from "@/lib/tax-forms/vat-form";
 import { computeWhtForm } from "@/lib/tax-forms/wht-form";
 import { toWhtRows, aggOf, WHT_SELECT, type WhtRow } from "@/lib/tax-forms/wht-rows";
 import { useStatementsTab } from "./_components/use-statements-tab";
@@ -292,6 +294,8 @@ export default function TaxFilingPage() {
       submitYm: m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`,
       madeOn: todayKst(),
       rows: efRows,
+      //   7단계 — 환급세액 조정(서식에서 계산한 값 그대로)
+      refund: (() => { const g = (k: string) => Math.round(Number(whtLive[k]?.tax || 0)); return { r12: g("R12"), r13: g("R13"), r14: g("R14"), r15: g("R15"), r18: g("R18"), r19: g("R19"), r20: g("R20") }; })(),
     });
     setEfileIssues(built.issues);
     if (built.bytes) {
@@ -336,12 +340,23 @@ export default function TaxFilingPage() {
     initial: { doc: searchParams?.get("doc"), year: searchParams?.get("tab") === "stmt" ? Number(searchParams?.get("year")) || null : null, half: searchParams?.get("half"), month: searchParams?.get("month") },
     renderDue: (d, id) => <DueDate d={d} done={taxChecked.has(id)} doneInfo={taxChecked.get(id)} onToggle={(on) => toggleChecked(id, on)} />,
   });
-  const whtCompute = useMemo(() => () => computeWhtForm({
+  //   7단계 세무 이월 — ⑫ 전월 미환급세액 = 지난달 원천세 신고본의 ⑳ 차월이월 환급세액(마감한 숫자)
+  const prevWhtMonth = (() => { const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7)); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; })();
+  const { data: prevWhtReturns = [] } = useQuery({
+    queryKey: ["tax-returns", companyId, "wht", prevWhtMonth], enabled: !!companyId && tab === "wht",
+    queryFn: () => listTaxReturns(companyId!, "wht", prevWhtMonth),
+  });
+  const prevCarry = Math.max(0, Math.round(Number(latestClosed(prevWhtReturns)?.figures?.R20?.tax || 0)));
+  const whtDefaultManual = useMemo<FormFigures>(() => { const m: FormFigures = {}; if (prevCarry) m.R12 = { tax: prevCarry }; return m; }, [prevCarry]);
+  const whtCarryNote = prevCarry ? `⑫ 전월 미환급세액 ${won(prevCarry)}은 ${prevWhtMonth} 원천세 신고본(마감한 숫자)의 ⑳ 차월이월 환급세액에서 채웠습니다.` : undefined;
+  //   서식의 지금 숫자(사람 칸 포함) — 전자신고 파일의 환급 조정이 같은 값을 쓴다
+  const [whtLive, setWhtLive] = useState<FormFigures>({});
+  const whtCompute = useMemo(() => (m: FormFigures) => computeWhtForm({
     work: { n: T.work.n, pay: T.work.taxable, tax: T.work.incomeTax },
     biz: { n: T.biz.n, pay: T.biz.taxable, tax: T.biz.incomeTax },
     ret: { n: T.ret.n, pay: T.ret.pay, tax: T.ret.incomeTax },
     daily: T.daily, other: T.other, interest: T.interest, dividend: T.dividend,
-  }), [T]);
+  }, m), [T]);
   const whtSources = useMemo(() => ({
     payroll: rows.map((r) => `${r.employee_id}:${r.period_month}`),
     retirement: retRows.filter((r) => !r.irp_deferred).map((r) => r.id),
@@ -378,7 +393,14 @@ export default function TaxFilingPage() {
       ...(T.interest.n > 0 ? [["이자소득", "A50", T.interest.n, num(T.interest.pay), num(T.interest.tax)]] : []),
       ...(T.dividend.n > 0 ? [["배당소득", "A60", T.dividend.n, num(T.dividend.pay), num(T.dividend.tax)]] : []),
       ["총합계", "A99", T.sum.n, num(T.sum.taxable), num(T.sum.incomeTax)], [],
-      ["납부 세액(홈택스 · 소득세)", "", "", "", num(T.sum.incomeTax)],
+      //   7단계 — 환급세액 조정이 있으면 납부 세액 = 징수세액 − ⑲ 당월 조정
+      ...((whtLive.R12?.tax || whtLive.R15?.tax) ? [
+        ["⑫ 전월 미환급세액", "", "", "", num(Number(whtLive.R12?.tax || 0))],
+        ["⑬ 기환급 신청세액", "", "", "", num(Number(whtLive.R13?.tax || 0))],
+        ["⑲ 당월 조정 환급세액", "", "", "", num(Number(whtLive.R19?.tax || 0))],
+        ["⑳ 차월이월 환급세액", "", "", "", num(Number(whtLive.R20?.tax || 0))],
+      ] : []),
+      ["납부 세액(홈택스 · 소득세)", "", "", "", num(whtLive.PAY ? Number(whtLive.PAY.tax || 0) : T.sum.incomeTax)],
       ["지방소득세 특별징수분(위택스 · 별도 신고)", "", "", "", num(T.sum.localTax)], [],
       ["※ 프리랜서(사업소득 3.3%)는 고용형태 '프리랜서', 일용근로는 '일용직' + 일용 근무 기록, 기타·이자·배당은 지급 기록으로 잡힙니다."],
       ...(T.corpCount > 0 ? [[`※ 법인에게 준 이자·배당 ${T.corpCount}건은 법인세 원천(A80)이라 위 표에 없습니다 — 세무사 확인.`]] : []),
@@ -650,7 +672,9 @@ export default function TaxFilingPage() {
             <ResultStrip>
               <Stat label="인원" value={`${T.sum.n}명${T.biz.n ? ` (사업소득 ${T.biz.n})` : ""}${T.ret.n ? ` (퇴직 ${T.ret.n})` : ""}`} />
               <Stat label="총지급액 (과세)" value={won(T.sum.taxable)} />
-              <Stat label="소득세 (홈택스 납부)" value={won(T.sum.incomeTax)} tone={T.sum.incomeTax ? "minus" : undefined} />
+              {/*   7단계 — 전월 미환급세액으로 조정하면 납부할 세액이 줄어든다(서식 '납부할 소득세'와 같은 값) */}
+              <Stat label="소득세 (홈택스 납부)" title={whtLive.R19?.tax ? `징수세액 ${won(T.sum.incomeTax)} − 당월 조정 환급 ${won(Number(whtLive.R19.tax))}` : undefined}
+                value={won(whtLive.PAY ? Number(whtLive.PAY.tax || 0) : T.sum.incomeTax)} tone={(whtLive.PAY ? Number(whtLive.PAY.tax || 0) : T.sum.incomeTax) ? "minus" : undefined} />
               <Stat label="지방소득세 (위택스 납부)" value={won(T.sum.localTax)} tone={T.sum.localTax ? "minus" : undefined} />
             </ResultStrip>
           </>)}
@@ -789,7 +813,8 @@ export default function TaxFilingPage() {
               {/*   무실적 달도 0원 신고서를 마감할 수 있게 (2026-10-12 결정 258 · 빈 상태) */}
               <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
                 periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급 (무실적)`}
-                compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading} />
+                compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading}
+                defaultManual={whtDefaultManual} defaultManualNote={whtCarryNote} onFigures={setWhtLive} />
               {retirePanel}
               {dailyPanel}
               {incomePanel}
@@ -803,7 +828,8 @@ export default function TaxFilingPage() {
                 {/*   서식 화면 · 마감 (2026-10-12 세무 2차 1단계, 결정 258~260) — 예전 '원천징수이행상황신고서' 요약 표를 대신한다 */}
                 <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
                   periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급`}
-                  compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading} />
+                  compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading}
+                defaultManual={whtDefaultManual} defaultManualNote={whtCarryNote} onFigures={setWhtLive} />
                 <div className="pnl-grid2">
                   <div className="pnl-panel">
                     <h3>지방소득세 (특별징수)</h3><p>소득세의 10%를 <b>위택스</b>에 따로 신고·납부합니다.</p>
