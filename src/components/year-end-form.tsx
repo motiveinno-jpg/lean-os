@@ -2,13 +2,15 @@
 
 // ── 연말정산 공제 자료 입력 팝업 (2026-10-14 연말정산 2단계) — 직원(작성·제출)과 담당자(읽기·확정)가 같은 팝업을 쓴다 ──
 //   입력하는 대로 오른쪽에 예상 결정세액·환급/추징(lib/tax-forms/year-end — 2025년 귀속 규칙)을 보여 준다.
-//   홈택스 간소화 자료 금액을 옮겨 적는 칸이다. 간소화 PDF 자동 읽기는 다음 단계.
+//   홈택스 간소화 자료 금액을 옮겨 적는 칸이다. 5단계(2026-10-14): 「간소화 PDF 불러오기」로 브라우저 안에서 읽어 고른 칸을 채운다.
 
 import { useMemo, useState, type ReactNode } from "react";
 import { CurrencyInput } from "@/components/currency-input";
 import { useModalKeys } from "@/hooks/use-modal-keys";
 import { RULE_YEAR } from "@/lib/tax-forms/year-end";
 import { settle, type Deductions, type PayrollSummary } from "@/lib/year-end-settlements";
+import { YearEndPdfImport } from "@/components/year-end-pdf-import";
+import type { PdfTarget } from "@/lib/tax-forms/hometax-pdf";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 type Key = keyof Deductions;
@@ -17,8 +19,18 @@ export function YearEndFormDialog({ title, year, initial, payroll, readOnly, onC
   title: string; year: number; initial: Deductions; payroll: PayrollSummary | undefined; readOnly?: boolean;
   onClose: () => void; onSave?: (d: Deductions, submit: boolean) => Promise<void>; footer?: ReactNode;
 }) {
-  useModalKeys(true, onClose);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  useModalKeys(!pdfOpen, onClose);
   const [d, setD] = useState<Deductions>(initial || {});
+  //   PDF 에서 고른 칸만 그 합계로 바꾼다(나머지 칸은 직접 넣은 값 그대로)
+  const applyPdf = (sums: Partial<Record<PdfTarget, number>>) => setD((x) => {
+    const next: Deductions = { ...x, card: { ...(x.card || {}) } };
+    for (const [k, v] of Object.entries(sums) as [PdfTarget, number][]) {
+      if (k.startsWith("card.")) (next.card as Record<string, number>)[k.slice(5)] = v;
+      else (next as Record<string, unknown>)[k] = v;
+    }
+    return next;
+  });
   const [busy, setBusy] = useState(false);
   const r = useMemo(() => settle(payroll, d), [payroll, d]);
   const set = (k: Key, v: unknown) => setD((x) => ({ ...x, [k]: v }));
@@ -43,7 +55,8 @@ export function YearEndFormDialog({ title, year, initial, payroll, readOnly, onC
   return (
     <div className="rtf-drill-overlay" onClick={onClose}>
       <div className="rtf-form ye-form" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={title}>
-        <div className="rtf-drill-head"><b>{title}</b><span>{year}년 귀속 · 규칙 {RULE_YEAR}년 귀속 기준 · 홈택스 간소화 자료 금액을 옮겨 적으세요</span></div>
+        <div className="rtf-drill-head ye-form-head"><b>{title}</b><span>{year}년 귀속 · 규칙 {RULE_YEAR}년 귀속 기준 · 홈택스 간소화 자료 금액을 옮겨 적거나 PDF를 불러오세요</span>
+          {!readOnly && onSave && <button type="button" className="btn-secondary btn-sm" onClick={() => setPdfOpen(true)}>간소화 PDF 불러오기</button>}</div>
         <div className="ye-body">
           <div className="ye-fields">
             <h4>부양가족 (본인 제외)</h4>
@@ -107,6 +120,7 @@ export function YearEndFormDialog({ title, year, initial, payroll, readOnly, onC
             <p className="rtf-legend">{payroll ? `발송된 급여 명세 ${payroll.months}개월 기준.` : "급여 명세가 없어 공제만 보입니다."} 예상치입니다 — 확정은 담당자가 합니다. 부양가족 소득요건·중복공제는 본인이 확인하세요.</p>
           </aside>
         </div>
+        {pdfOpen && <YearEndPdfImport year={year} onClose={() => setPdfOpen(false)} onApply={applyPdf} />}
         <div className="rtf-form-actions">
           {footer}
           <button type="button" className="btn-secondary btn-sm" onClick={onClose} disabled={busy}>닫기</button>

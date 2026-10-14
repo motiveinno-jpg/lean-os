@@ -11648,3 +11648,12 @@ table.tir-items-table { min-width: 640px; }
 .ye-mine-row { @apply flex flex-wrap items-center gap-2; }
 .ye-mine-result { @apply text-xs text-[var(--text-muted)]; }
 .ye-return-reason { @apply mr-auto max-w-xs text-xs; }
+/* 연말정산 간소화 PDF 불러오기 (2026-10-14, components/year-end-pdf-import.tsx · year-end-form.tsx 머리단 버튼) */
+.ye-form-head > button { @apply ml-auto; }
+.ye-pdf { max-width: 980px; }
+.ye-pdf-pick { @apply flex flex-col gap-3; }
+.ye-pdf-result { @apply flex flex-col gap-2; }
+.ye-pdf-table { max-height: 45vh; overflow-y: auto; }
+.ye-pdf-note { @apply mt-0.5 text-[11px]; }
+.ye-pdf-select { @apply h-8 w-full min-w-[150px] text-xs; }
+.ye-pdf-sums { @apply flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]; }
