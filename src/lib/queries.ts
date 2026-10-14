@@ -855,14 +855,20 @@ export async function setBankAccountAlias(
     .eq('account_number', accountNumber)
     .select('id'));
   if (updated && updated.length > 0) return;
-  const { error } = await supabase.from('bank_accounts').insert({
+  //   그 사이 다른 요청이 같은 통장 행을 만들었으면 넣지 않고(ignoreDuplicates) 한 번 더 고친다 — 겹쳐 눌러도 실패하지 않게
+  const { data: inserted, error } = await supabase.from('bank_accounts').upsert({
     company_id: companyId,
     account_number: accountNumber,
     bank_name: opts?.bankName || '기타',
     alias: trimmed || null,
     balance: opts?.balance ?? 0,
-  });
+  }, { onConflict: 'company_id,account_number', ignoreDuplicates: true }).select('id');
   if (error) throw error;
+  if (!inserted?.length) {
+    const { error: e2 } = await supabase.from('bank_accounts').update({ alias: trimmed || null })
+      .eq('company_id', companyId).eq('account_number', accountNumber);
+    if (e2) throw e2;
+  }
 }
 
 /** 통장 이름·메모·숨김 한 번에 (이름 변경만으론 단편적 — 수정·숨김·삭제). bank_accounts 행이 없으면 만든다 */
@@ -880,10 +886,16 @@ export async function updateBankAccountMeta(
   const updated = logRead('updateBankAccountMeta', await supabase
     .from('bank_accounts').update(clean as never).eq('company_id', companyId).eq('account_number', accountNumber).select('id'));
   if (updated && updated.length > 0) return;
-  const { error } = await supabase.from('bank_accounts').insert({
+  //   그 사이 다른 요청이 같은 통장 행을 만들었으면 넣지 않고(ignoreDuplicates) 한 번 더 고친다 — 이름·숨김·수집 토글을 연달아 눌러도 실패하지 않게
+  const { data: inserted, error } = await supabase.from('bank_accounts').upsert({
     company_id: companyId, account_number: accountNumber, bank_name: opts?.bankName || '기타', balance: opts?.balance ?? 0, ...clean,
-  } as never);
+  } as never, { onConflict: 'company_id,account_number', ignoreDuplicates: true }).select('id');
   if (error) throw error;
+  if (!inserted?.length) {
+    const { error: e2 } = await supabase.from('bank_accounts').update(clean as never)
+      .eq('company_id', companyId).eq('account_number', accountNumber);
+    if (e2) throw e2;
+  }
 }
 
 /** 통장 삭제 — 거래가 하나라도 있으면 막는다(장부가 깨진다). 그 경우 '숨김'을 안내 */

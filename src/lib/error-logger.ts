@@ -495,6 +495,9 @@ export async function logError(params: {
     //   '알림 화면 오류'로 쌓았다(chrome-extension://…/executors/200.js · reading 'M_ID', 2026-10-07).
     const origin = `${params.stack || ""} ${String((params.context as { filename?: string } | undefined)?.filename || "")}`;
     if (/(chrome|moz|safari-web|safari)-extension:\/\//i.test(origin)) return;
+    //   자동 점검 도구(Playwright)가 화면에 직접 심어 실행한 측정 코드의 오류 — 사용자 화면에서 난 게 아니다
+    //   (스택이 "eval at evaluate (:311:30)" 처럼 도구의 evaluate 에서 시작한다)
+    if (/eval at evaluate \(:\d+:\d+\)/.test(params.stack || "")) return;
     // 개발 서버(localhost)에서 난 에러는 운영 신호가 아니다 — 로컬 dev 가 운영 DB를 보고 있으면
     //   작업 중인 코드의 에러까지 운영자 대시보드에 쌓인다 (이미 처리된 게 계속 뜬다).
     if (typeof window !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)) return;

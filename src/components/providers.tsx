@@ -41,11 +41,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
             const isInputNotice =
               error instanceof Error && error.name === "Error" &&
               !eo.code && !eo.status && !eo.details && !eo.hint;
+            // 우리 트리거가 한글 안내로 막은 것(P0001 · "이미 등록된 사업자번호" 등)도 규칙대로 거절된 입력이다 —
+            //   DB 요청 가로채기(supabase-browser)와 같은 기준. 저장 화면이 mutation 으로 부르면 이쪽으로 들어온다.
+            const isRuleRejection = eo.code === "P0001" && /[가-힣]/.test(typeof eo.message === "string" ? eo.message : "");
             if (typeof window !== "undefined" && !msg.includes("aborted")) {
               const event = new CustomEvent("ownerview:mutation-error", { detail: msg });
               window.dispatchEvent(event);
               // 운영자 조회용 DB 적재 · 어떤 작업/페이지였는지 context 에 기록
-              if (isInputNotice) return;
+              if (isInputNotice || isRuleRejection) return;
               const mKey = mutation?.options?.mutationKey;
               const actionLabel = Array.isArray(mKey) ? mKey.join(" / ") : (mKey ? String(mKey) : "데이터 저장/수정");
               import("@/lib/error-logger").then(({ logError }) => {

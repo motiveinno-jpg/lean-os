@@ -1721,7 +1721,7 @@ function TaxInvoicesPageInner() {
                 <span className="ti-strip-bad">
                   이 기간 밖에 미발행 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 있습니다.
                   <button type="button" className="ti-strip-go"
-                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01`); setViewTo(todayKst().slice(0, 7)); }}>
+                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01-01`); setViewTo(`${todayKst().slice(0, 4)}-12-31`); }}>
                     올해 전체로 넓히기
                   </button>
                 </span>
@@ -1741,7 +1741,7 @@ function TaxInvoicesPageInner() {
                 <span className="ti-strip-bad">
                   이 기간 밖에 미발행 <b>{waitOutside.toLocaleString("ko")}건</b>이 더 있습니다.
                   <button type="button" className="ti-strip-go"
-                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01`); setViewTo(todayKst().slice(0, 7)); }}>
+                    onClick={() => { setViewFrom(`${todayKst().slice(0, 4)}-01-01`); setViewTo(`${todayKst().slice(0, 4)}-12-31`); }}>
                     올해 전체로 넓히기
                   </button>
                 </span>
