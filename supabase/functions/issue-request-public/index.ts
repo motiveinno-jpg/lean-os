@@ -18,6 +18,7 @@
 //     · 발행 한도·충전 차감은 **요청 회사** 몫(issue_allowance·consume_issue_credit). 사용량은
 //       get_monthly_issue_usage 가 issued_via='popbill_public' 줄을 요청 회사 세금계산서 건수에 더해 센다.
 
+import { isPreSubmitRejection, issueHintFromExtra } from "../_shared/codef-issue-errors.ts";
 import { withSentry } from "../_shared/sentry.ts";
 import { createMeterStore, runWithMeter, flushCodefUsage } from "../_shared/codef-meter.ts";
 import { CODEF_ENV, CODEF_BASE, getCodefToken, codefRequest } from "../_shared/codef-issue-client.ts";
@@ -196,8 +197,7 @@ Deno.serve(withSentry("issue-request-public", async (req) => {
       const prev = r.public_response as { result?: { code?: string; extraMessage?: string } } | null;
       if (r.public_issue_status === "failed" && prev?.result?.code === "CF-05001") {
         const extra = String(prev?.result?.extraMessage || "");
-        const validationRejected = /동일하지\s*않|필수|형식|올바르지|유효하지|누락|\[-1100/.test(extra);
-        if (!validationRejected) {
+        if (!isPreSubmitRejection(extra)) {
           return json({
             error: "재발행 차단: 앞선 시도가 실패로 표시됐지만 실제로는 발행됐을 수 있습니다. 다시 보내면 중복 발행됩니다.",
             hint: "홈택스에서 발행 여부(승인번호)를 확인한 뒤, 발행됐다면 「홈택스에서 직접 발행」 칸에 승인번호를 적어 주세요.",
@@ -272,7 +272,7 @@ Deno.serve(withSentry("issue-request-public", async (req) => {
       }).eq("id", r.id);
       return json({
         error: `발행하지 못했습니다 (${code || "응답 없음"}): ${resp?.result?.message || ""}`.trim(),
-        hint: hintFor(code), code,
+        hint: issueHintFromExtra(String(resp?.result?.extraMessage || "")) ?? hintFor(code), code,
       }, 400);
     } catch (err) {
       return json({ error: (err as Error)?.message || "Internal error" }, 500);

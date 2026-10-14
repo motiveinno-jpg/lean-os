@@ -4,6 +4,7 @@ import { createMeterStore, runWithMeter, flushCodefUsage } from "../_shared/code
 import { CODEF_ENV, CODEF_BASE, getCodefToken, codefRequest } from "../_shared/codef-issue-client.ts";
 // payload 빌더(buildIssuePayload·buildDetailList·toYmd·normalizeNtsConfirmNum)는 issue-request-public 과 같이 쓴다
 import { buildIssuePayload, normalizeNtsConfirmNum } from "../_shared/tax-invoice-payload.ts";
+import { isPreSubmitRejection, issueHintFromExtra } from "../_shared/codef-issue-errors.ts";
 // hometax-issue: 홈택스(국세청) 전자세금계산서 정발행
 //
 // CODEF 발행 API(/v1/kr/public/a/tax-invoice/regist-invoicer-trustee) 호출 →
@@ -208,15 +209,14 @@ serve(withSentry("hometax-issue", async (req) => {
       //     실발행이 안 된다 → 재발행을 막지 않는다(중복 위험 없음). 막는 건 검증 메시지가 없는
       //     transient CF-05001 뿐이다 — 2026-07-20 인시던트가 바로 그 경우였다(팝빌이 실발행 → 중복).
       const extra = String((invoice.nts_response_payload as any)?.result?.extraMessage || "");
-      const validationRejected = /동일하지\s*않|필수|형식|올바르지|유효하지|누락|\[-1100/.test(extra);
-      if (!validationRejected) {
+      if (!isPreSubmitRejection(extra)) {
         return new Response(JSON.stringify({
           error: "재발행 차단: 이 건은 CF-05001로 실패 표시됐지만 실제로는 팝빌에서 발행됐을 가능성이 높습니다. 재시도하면 중복 발행됩니다.",
           hint: "다음날 홈택스 동기화로 실제 발행 여부(승인번호)를 확인한 뒤 처리하세요. CODEF 문의 진행 중.",
           code: "CF05001_REISSUE_BLOCKED",
         }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      //   검증 반려건은 통과 — 아래 정상 발행 로직으로 (품목 세액 버그도 이제 고쳐져 재발행이 성공한다)
+      //   검증 반려·인증서 만료 건은 통과 — 팝빌이 제출 전에 거절해 발행됐을 수 없다(_shared/codef-issue-errors.ts)
     }
 
     // 3-0.5) 매입 계산서는 거래처가 공급자다 — 우리 명의로 국세청에 발행하면 안 된다(수정계산서 경로로 새던 구멍)
@@ -498,7 +498,7 @@ serve(withSentry("hometax-issue", async (req) => {
 
     // 실패
     const errorMsg = codefResp?.result?.message || "발행 실패";
-    const hint = codefErrorHint(resultCode);
+    const hint = issueHintFromExtra(String(codefResp?.result?.extraMessage || "")) ?? codefErrorHint(resultCode);
     const { error: updErr } = await supabase.from("tax_invoices").update({
       nts_issue_status: "failed",
       nts_error_code: resultCode || "UNKNOWN",
