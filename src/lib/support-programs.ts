@@ -911,6 +911,14 @@ export async function saveProfileExt(companyId: string, userId: string | null, i
   if (error) throw error;
 }
 
+/** 개업일 — 공공 자료에서 찾아 국세청 진위확인이 맞을 때만 돌려주거나(check 없음), 적힌 날짜가 국세청 개업일과 맞는지 확인(check).
+ *  국세청 공개 API 는 개업일을 알려 주지 않고 '맞는지'만 답한다 — 추측한 날짜를 채우지 않는다. */
+export async function lookupOpenDate(companyId: string, check?: string): Promise<{ openDate?: string | null; check?: "verified" | "mismatch" | "unknown"; reason?: string }> {
+  const { data, error } = await supabase.functions.invoke("verify-business-number", { body: { openDateFor: { companyId, ...(check ? { check } : {}) } } });
+  if (error) return { check: check ? "unknown" : undefined, reason: "확인하지 못했습니다." };
+  return data as { openDate?: string | null; check?: "verified" | "mismatch" | "unknown"; reason?: string };
+}
+
 export async function loadProfileExt(companyId: string): Promise<ProfileExtInput> {
   const { data } = await supabase.from("company_profile_ext").select("*").eq("company_id", companyId).maybeSingle();
   return {

@@ -7,7 +7,7 @@ import { useModalKeys } from "@/hooks/use-modal-keys";
 import { friendlyError } from "@/lib/friendly-error";
 import { DateField } from "@/components/date-field";
 import {
-  loadProfileExt, saveProfileExt, CARD_TOTAL,
+  loadProfileExt, saveProfileExt, lookupOpenDate, CARD_TOTAL,
   SIZE_CLASSES, CERTIFICATIONS, INTERESTS, KSIC_MAIN,
   type ProfileExtInput,
 }  from "@/lib/support-programs";
@@ -36,6 +36,36 @@ export function SupportCompanyCard({
   });
   //   팝업을 열 때마다 저장값으로 되돌린다 — 지난번에 쓰다 만 값이 남아 있으면 헷갈린다
   useEffect(() => { if (open && saved) setForm(saved); }, [open, saved]);
+
+  //   개업일 — 임의값 대신 국세청 기록 기준(2026-10-14). 비어 있으면 공공 자료에서 찾아 국세청이 '일치'라 할 때만 채우고,
+  //   적혀 있으면 그 날짜가 국세청 개업일과 맞는지 표시한다(틀린 날짜로 업력 조건이 잘못 판정되지 않게).
+  const [dateCheck, setDateCheck] = useState<"checking" | "verified" | "mismatch" | "unknown" | null>(null);
+  const [dateNote, setDateNote] = useState<string>("");
+  useEffect(() => {
+    if (!open || !saved) return;
+    let alive = true;
+    setDateNote("");
+    if (saved.open_date) {
+      setDateCheck("checking");
+      lookupOpenDate(companyId, saved.open_date).then((r) => { if (alive) setDateCheck(r.check ?? "unknown"); });
+    } else {
+      setDateCheck("checking");
+      lookupOpenDate(companyId).then((r) => {
+        if (!alive) return;
+        if (r.openDate) { setForm((f) => (f.open_date ? f : { ...f, open_date: r.openDate! })); setDateCheck("verified"); setDateNote("국세청 기록으로 확인한 개업일을 채웠습니다."); }
+        else { setDateCheck(null); setDateNote(r.reason || ""); }
+      });
+    }
+    return () => { alive = false; };
+  }, [open, saved, companyId]);
+  //   직접 고친 날짜도 바로 확인
+  useEffect(() => {
+    if (!open || !form.open_date || form.open_date === saved?.open_date || form.open_date.length !== 10) return;
+    let alive = true;
+    setDateCheck("checking"); setDateNote("");
+    const t = setTimeout(() => { lookupOpenDate(companyId, form.open_date!).then((r) => { if (alive) setDateCheck(r.check ?? "unknown"); }); }, 500);
+    return () => { alive = false; clearTimeout(t); };
+  }, [open, form.open_date, saved?.open_date, companyId]);
 
   const [grantYear, setGrantYear] = useState("");
   const [grantName, setGrantName] = useState("");
@@ -82,7 +112,11 @@ export function SupportCompanyCard({
             <div className="sp-q-label"><em>1</em> 개업일</div>
             <div className="sp-q-body">
               <DateField value={form.open_date ?? ""} onChange={(e) => setForm({ ...form, open_date: e.target.value || null })} />
-              <p className="sp-q-hint">사업자등록증의 개업연월일을 넣어 주세요.</p>
+              {dateCheck === "checking" && <p className="sp-q-hint">국세청 기록과 맞춰 보는 중…</p>}
+              {dateCheck === "verified" && <p className="sp-date-ok">✓ 국세청 개업일과 일치합니다.{dateNote ? ` ${dateNote}` : ""}</p>}
+              {dateCheck === "mismatch" && <p className="sp-date-bad">⚠ 국세청에 등록된 개업일과 다릅니다. 사업자등록증의 개업연월일로 고쳐 주세요.</p>}
+              {dateCheck === "unknown" && <p className="sp-q-hint">지금은 국세청 확인을 할 수 없습니다. 사업자등록증의 개업연월일을 넣어 주세요.</p>}
+              {dateCheck === null && <p className="sp-q-hint">{dateNote || "사업자등록증의 개업연월일을 넣어 주세요."}</p>}
             </div>
           </div>
 

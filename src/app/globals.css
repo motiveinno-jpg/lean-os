@@ -11617,3 +11617,7 @@ table.tir-items-table { min-width: 640px; }
 .rtf-cell-input { @apply w-full border-b border-dashed border-[var(--border)] bg-transparent px-1 text-xs outline-none focus:border-[var(--primary)] disabled:opacity-50; }
 .rtf-claim-grid { @apply grid grid-cols-1 gap-3 sm:grid-cols-3; }
 .rtf-claim-reason { @apply sm:col-span-3; }
+
+/* 지원사업 회사 카드 · 개업일 국세청 확인 결과 */
+.sp-date-ok { @apply text-[11px] leading-4 font-semibold text-green-600; }
+.sp-date-bad { @apply text-[11px] leading-4 font-semibold text-[var(--danger)]; }

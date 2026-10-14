@@ -5,6 +5,7 @@ import { withSentry } from "../_shared/sentry.ts";
 // Uses 공공데이터포털 NTS Businessman API to verify Korean business registration numbers.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,40 @@ interface VerifyRequest {
   businessNumbers?: string[];
   // 진위확인 모드 (2026-07-06 가입 대표자 인증) — 번호+대표자성명+개업일자가 국세청 기록과 일치하는지
   owner?: { businessNumber: string; ownerName: string; startDate: string /* YYYYMMDD */ };
+  // 개업일 찾기 모드 — 내 회사의 실제 개업일을 공공 자료에서 찾아 국세청 진위확인으로 맞는지 확인
+  openDateFor?: { companyId: string; check?: string /* YYYY-MM-DD — 이 날짜가 국세청 개업일과 맞는지만 */ };
+}
+
+/** 국세청 진위확인 — 번호+대표자+개업일이 국세청 기록과 맞나 */
+async function ntsValidate(apiKey: string, bno: string, pnm: string, sdt: string): Promise<boolean | null> {
+  const r = await tfetch(`https://api.odcloud.kr/api/nts-businessman/v1/validate?serviceKey=${encodeURIComponent(apiKey)}`, {
+    method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ businesses: [{ b_no: bno, start_dt: sdt, p_nm: pnm }] }),
+  });
+  if (!r.ok) return null;
+  const d = await r.json().catch(() => null);
+  return ((d?.data || [])[0] || {}).valid === "01";
+}
+
+/** 금융위원회 기업기본정보에서 같은 사업자번호의 설립일 후보 — 법인 이름으로 찾고 사업자번호로 고른다 */
+async function corpEstablishedDates(apiKey: string, name: string, bno: string): Promise<{ dates: string[]; note?: string }> {
+  const plain = name.replace(/\(주\)|㈜|주식회사|\(유\)|유한회사|\s+/g, "").trim();
+  if (!plain) return { dates: [] };
+  const url = `https://apis.data.go.kr/1160100/service/GetCorpBasicInfoService_V2/getCorpOutline_V2?serviceKey=${encodeURIComponent(apiKey)}&resultType=json&numOfRows=100&pageNo=1&corpNm=${encodeURIComponent(plain)}`;
+  const r = await tfetch(url, { headers: { Accept: "application/json" } });
+  const text = await r.text();
+  if (!r.ok || /SERVICE_KEY_IS_NOT_REGISTERED|SERVICE ACCESS DENIED|Unauthorized/i.test(text)) return { dates: [], note: `corp_api_${r.status}` };
+  let items: any[] = [];
+  try {
+    const j = JSON.parse(text);
+    const it = j?.response?.body?.items?.item;
+    items = Array.isArray(it) ? it : it ? [it] : [];
+  } catch { return { dates: [], note: "corp_api_parse" }; }
+  const dates = items
+    .filter((x) => String(x.bzno || "").replace(/\D/g, "") === bno)
+    .map((x) => String(x.enpEstbDt || x.corpEstbDt || "").replace(/\D/g, ""))
+    .filter((d) => d.length === 8);
+  return { dates: [...new Set(dates)], note: items.length ? undefined : "corp_not_found" };
 }
 
 interface BusinessStatus {
@@ -70,7 +105,46 @@ serve(withSentry("verify-business-number", async (req: Request) => {
     }
 
     // Parse request
-    const { businessNumbers, owner }: VerifyRequest = await req.json();
+    const { businessNumbers, owner, openDateFor }: VerifyRequest = await req.json();
+
+    // ─── 개업일 찾기 — 회사 카드(지원사업) '개업일'을 임의값 대신 실제 값으로 (2026-10-14) ───
+    //   국세청 공개 API 는 개업일을 '알려 주지' 않고 맞는지 '확인'만 한다. 그래서 금융위원회 기업기본정보(법인)에서
+    //   같은 사업자번호의 설립일을 후보로 받고, 국세청 진위확인(번호+대표자+날짜)이 '일치'일 때만 개업일로 돌려준다.
+    //   찾지 못하면 비워 두고 사업자등록증 값을 직접 넣게 한다 — 추측한 날짜를 넣지 않는다.
+    if (openDateFor) {
+      const jwt = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
+      const sbUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const anonC = createClient(sbUrl, Deno.env.get("SUPABASE_ANON_KEY") ?? "");
+      const { data: { user } } = await anonC.auth.getUser(jwt);
+      if (!user) return jsonResponse(401, { success: false, message: "로그인이 필요합니다." });
+      const admin = createClient(sbUrl, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
+      const { data: me } = await admin.from("users").select("company_id").eq("auth_id", user.id).maybeSingle();
+      if (!me?.company_id || me.company_id !== openDateFor.companyId) return jsonResponse(403, { success: false, message: "이 회사 구성원만 찾을 수 있습니다." });
+      const { data: co } = await admin.from("companies").select("name, business_number, representative").eq("id", openDateFor.companyId).maybeSingle();
+      const bno = String(co?.business_number || "").replace(/[^0-9]/g, "");
+      const pnm = String(co?.representative || "").trim();
+      if (bno.length !== 10) return jsonResponse(200, { success: true, openDate: null, reason: "회사 정보에 사업자등록번호가 없습니다." });
+      if (!pnm) return jsonResponse(200, { success: true, openDate: null, reason: "회사 정보에 대표자 이름이 없어 국세청 확인을 할 수 없습니다." });
+      //   지금 적힌 날짜 확인 — 맞으면 verified, 다르면 mismatch(국세청 기록과 다름). 날짜를 알려 주지는 않는다.
+      if (openDateFor.check) {
+        const d = String(openDateFor.check).replace(/\D/g, "");
+        if (d.length !== 8) return jsonResponse(400, { success: false, message: "날짜 형식이 맞지 않습니다." });
+        const ok = await ntsValidate(apiKey, bno, pnm, d);
+        return jsonResponse(200, { success: true, check: ok === null ? "unknown" : ok ? "verified" : "mismatch" });
+      }
+      const { dates, note } = await corpEstablishedDates(apiKey, String(co?.name || ""), bno);
+      for (const d of dates) {
+        if (await ntsValidate(apiKey, bno, pnm, d) === true) {
+          return jsonResponse(200, { success: true, openDate: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`, verified: true, source: "금융위원회 기업기본정보 · 국세청 진위확인 일치" });
+        }
+      }
+      return jsonResponse(200, {
+        success: true, openDate: null, candidates: dates.length, note,
+        reason: dates.length
+          ? "공공 자료의 설립일이 국세청 개업일과 달라 채우지 않았습니다. 사업자등록증의 개업연월일을 넣어 주세요."
+          : "공공 자료에서 이 사업자번호의 개업일을 찾지 못했습니다. 사업자등록증의 개업연월일을 넣어 주세요.",
+      });
+    }
 
     // ─── 진위확인 모드 — 사업자번호+대표자성명+개업일자 국세청 일치 확인 (가입 선점 방지) ───
     if (owner) {
