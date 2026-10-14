@@ -15,8 +15,9 @@ import { buildNtsFile, type NtsField, type NtsIssue } from "@/lib/nts-efile";
 
 export type WhtEfileRow = {
   /** 원천징수소득코드 — A01 근로 간이세액 · A10 근로 가감계 · A22 퇴직소득 그 외 · A20 퇴직소득 가감계(2026-10-07) ·
-   *  A25 사업소득 매월징수 · A30 사업소득 가감계 · A99 총합계 */
-  code: "A01" | "A10" | "A22" | "A20" | "A25" | "A30" | "A99";
+   *  A25 사업소득 매월징수 · A30 사업소득 가감계 · A99 총합계
+   *  2026-10-14 세무 2차 4단계: A03 일용근로 · A42 기타소득 그 외 · A40 기타소득 가감계 · A50 이자 · A60 배당 (규격 P32 코드표) */
+  code: "A01" | "A03" | "A10" | "A22" | "A20" | "A25" | "A30" | "A42" | "A40" | "A50" | "A60" | "A99";
   n: number; pay: number; tax: number;
 };
 export type WhtEfileInput = {

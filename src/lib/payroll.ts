@@ -97,6 +97,8 @@ export async function previewPayroll(
 
   //   표 순서 = 사번 순 → 가나다 → ABC (디렉토리와 같은 규칙)
   for (const emp of [...(employees as any[])].sort(comparePeople)) {
+    //   일용직은 월급이 아니라 날마다 일당 — 급여 미리보기·발송에서 빼고 일용 근무 기록(세무 신고 › 원천세)으로 (2026-10-14 세무 2차 4단계)
+    if (emp.employment_type === 'daily') continue;
     const ov = overrideMap[emp.id];
     // 월별 override 가 있으면 그 값 사용, 없으면 employees.salary(연봉 ÷ 12 = 월급) 사용
     const salary = ov ? ov.base_salary : Number(emp.salary || 0);

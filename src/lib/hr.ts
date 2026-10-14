@@ -151,6 +151,8 @@ export const CONTRACT_TYPES = [
   { value: 'part_time', label: '파트타임' },
   { value: 'intern', label: '인턴' },
   { value: 'freelance', label: '프리랜서' },
+  //   일용직 (2026-10-14 세무 2차 4단계) — 월 급여 계산에서 빠지고, 재무 › 세무 신고 › 원천세 '일용 근무 기록'으로 일당을 남긴다(A03)
+  { value: 'daily', label: '일용직' },
 ] as const;
 
 // ── Attendance & Leave Constants ──

@@ -6160,6 +6160,79 @@ export type Database = {
           },
         ]
       }
+      daily_work_logs: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          daily_wage: number
+          employee_id: string | null
+          employee_name: string
+          id: string
+          income_tax: number
+          local_tax: number
+          memo: string | null
+          non_taxable: number
+          paid_on: string
+          updated_at: string
+          work_date: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          daily_wage: number
+          employee_id?: string | null
+          employee_name?: string
+          id?: string
+          income_tax?: number
+          local_tax?: number
+          memo?: string | null
+          non_taxable?: number
+          paid_on: string
+          updated_at?: string
+          work_date: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          daily_wage?: number
+          employee_id?: string | null
+          employee_name?: string
+          id?: string
+          income_tax?: number
+          local_tax?: number
+          memo?: string | null
+          non_taxable?: number
+          paid_on?: string
+          updated_at?: string
+          work_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_work_logs_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_work_logs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "daily_work_logs_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       db_integrity_checks: {
         Row: {
           id: number
@@ -9849,6 +9922,78 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      income_payments: {
+        Row: {
+          amount: number
+          company_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          income_kind: string
+          income_tax: number
+          local_tax: number
+          memo: string | null
+          necessary_expense: number
+          paid_on: string
+          payee_kind: string
+          payee_name: string
+          sub_kind: string | null
+          tax_rate: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          income_kind: string
+          income_tax?: number
+          local_tax?: number
+          memo?: string | null
+          necessary_expense?: number
+          paid_on: string
+          payee_kind?: string
+          payee_name: string
+          sub_kind?: string | null
+          tax_rate?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          income_kind?: string
+          income_tax?: number
+          local_tax?: number
+          memo?: string | null
+          necessary_expense?: number
+          paid_on?: string
+          payee_kind?: string
+          payee_name?: string
+          sub_kind?: string | null
+          tax_rate?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "income_payments_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "income_payments_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]

@@ -47,6 +47,9 @@ import { getUpcomingTaxDeadlines } from "@/components/upcoming-schedule";
 import { fetchTaxDeadlineChecks, setTaxDeadlineChecked, taxCheckTitle, type TaxCheckInfo } from "@/lib/tax-deadline-checks";
 import { listRetirementPayments, type RetirementPayment } from "@/lib/retirement";
 import { RetirementPaymentDialog } from "@/components/retirement-payment-dialog";
+import { DailyLogDialog, IncomePaymentDialog } from "@/components/wht-income-dialogs";
+import { listDailyLogs, listIncomePayments } from "@/lib/wht-income-records";
+import { whtIncomeAgg, INCOME_KIND_LABEL, type DailyLog, type IncomePayment } from "@/lib/tax-forms/wht-income";
 import { entertainmentLimit, isEntertainmentAccount, isSalesAccount } from "@/lib/entertainment-limit";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
@@ -112,6 +115,8 @@ type WhtRow = {
   biz: boolean;
   period_month: string;
   taxable: number; nonTaxable: number; incomeTax: number; localIncomeTax: number; issuedAt: string | null;
+  /** 급여대장 칸 (2026-10-14 4단계) — 4대보험 근로자 부담·공제 합계·실지급액 */
+  pension: number; health: number; ltc: number; employment: number; deductions: number; net: number;
 };
 const aggOf = (list: WhtRow[]) => ({
   n: list.length,
@@ -139,10 +144,12 @@ function toWhtRows(data: any[]): WhtRow[]  {
       incomeTax: Number(r.income_tax || 0),
       localIncomeTax: Number(r.local_income_tax || 0),
       issuedAt: r.issued_at || null,
+      pension: Number(r.national_pension || 0), health: Number(r.health_insurance || 0), ltc: Number(r.long_term_care_insurance || 0),
+      employment: Number(r.employment_insurance || 0), deductions: Number(r.deductions_total || 0), net: Number(r.net_pay || 0),
     };
   }).sort((a: WhtRow, b: WhtRow) => comparePeople(a, b));
 }
-const WHT_SELECT = "employee_id, period_month, base_salary, non_taxable_amount, income_tax, local_income_tax, extras, issued_at, employees(name, employee_number, employment_type)";
+const WHT_SELECT = "employee_id, period_month, base_salary, non_taxable_amount, income_tax, local_income_tax, extras, issued_at, national_pension, health_insurance, long_term_care_insurance, employment_insurance, deductions_total, net_pay, employees(name, employee_number, employment_type)";
 
 export default function TaxFilingPage() {
   const { isMaster, hasPerm, loading: permLoading } = useMyPermissions();
@@ -223,6 +230,18 @@ export default function TaxFilingPage() {
       return listRetirementPayments(companyId!, `${month}-01`, `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, "0")}`);
     },
   });
+  //   일용 근무 기록·기타/이자/배당 지급 기록 (2026-10-14 세무 2차 4단계, 결정 262) — 지급일이 이 달인 것.
+  //   일용은 급여 권한(RLS), 지급 기록은 세무 신고 권한으로 읽힌다 — 권한이 없으면 빈 목록이라 신고서에서도 빠진다(패널에 적는다)
+  const [dailyDialog, setDailyDialog] = useState<{ edit: DailyLog | null } | null>(null);
+  const [payDialog, setPayDialog] = useState<{ edit: IncomePayment | null } | null>(null);
+  const { data: dailyLogs = [], isLoading: dailyLoading } = useQuery<DailyLog[]>({
+    queryKey: ["daily-work-logs", companyId, month], enabled: !!companyId && tab === "wht",
+    queryFn: () => listDailyLogs(companyId!, month),
+  });
+  const { data: incomePays = [], isLoading: payLoading } = useQuery<IncomePayment[]>({
+    queryKey: ["income-payments", companyId, month], enabled: !!companyId && tab === "wht",
+    queryFn: () => listIncomePayments(companyId!, month),
+  });
   //   지급명세서 자료 · 근로 반기(여섯 달) / 사업소득 한 달
   const stmtMonths = stmtKind === "work" ? halfMonths(stmtYear, stmtHalf) : [stmtMonth];
   const  { data: stmtRows = [], isLoading: stmtLoading } = useQuery<WhtRow[]>({
@@ -296,10 +315,12 @@ export default function TaxFilingPage() {
   const makeEfile = () => {
     if (!companyInfo) return;
     try { if (typeof window !== "undefined") window.sessionStorage.setItem(`ov.hometax-id.${companyId}`, hometaxId.trim()); } catch { /* 무시 */ }
-    const { work, biz, ret, sum } = T;
+    const { work, biz, ret, sum, daily, other, interest, dividend } = T;
     const efRows: WhtEfileRow[] = [
       { code: "A01" as const, n: work.n, pay: work.taxable, tax: work.incomeTax },
-      { code: "A10" as const, n: work.n, pay: work.taxable, tax: work.incomeTax },
+      //   4단계 — 일용(A03), 근로 가감계(A10) = A01 + A03
+      ...(daily.n > 0 ? [{ code: "A03" as const, n: daily.n, pay: daily.pay, tax: daily.tax }] : []),
+      { code: "A10" as const, n: work.n + daily.n, pay: work.taxable + daily.pay, tax: work.incomeTax + daily.tax },
       //   퇴직소득 그 외(A22)·가감계(A20) — 규격 원천징수소득코드표 (원천신고 전산매체 제출요령 V2)
       ...(ret.n > 0 ? [
         { code: "A22" as const, n: ret.n, pay: ret.pay, tax: ret.incomeTax },
@@ -309,6 +330,12 @@ export default function TaxFilingPage() {
         { code: "A25" as const, n: biz.n, pay: biz.taxable, tax: biz.incomeTax },
         { code: "A30" as const, n: biz.n, pay: biz.taxable, tax: biz.incomeTax },
       ] : []),
+      ...(other.n > 0 ? [
+        { code: "A42" as const, n: other.n, pay: other.pay, tax: other.tax },
+        { code: "A40" as const, n: other.n, pay: other.pay, tax: other.tax },
+      ] : []),
+      ...(interest.n > 0 ? [{ code: "A50" as const, n: interest.n, pay: interest.pay, tax: interest.tax }] : []),
+      ...(dividend.n > 0 ? [{ code: "A60" as const, n: dividend.n, pay: dividend.pay, tax: dividend.tax }] : []),
       { code: "A99" as const, n: sum.n, pay: sum.taxable, tax: sum.incomeTax },
     ].filter((r) => r.n > 0 || r.pay > 0 || r.tax !== 0);
     const y = Number(month.slice(0, 4)), m = Number(month.slice(5, 7));
@@ -341,17 +368,22 @@ export default function TaxFilingPage() {
       incomeTax: retList.reduce((s, r) => s + r.income_tax, 0),
       localTax: retList.reduce((s, r) => s + r.local_tax, 0),
     };
+    //   4단계 — 일용(A03)·기타(A42)·이자(A50)·배당(A60). 법인에게 준 이자·배당은 법인세 원천(A80)이라 뺀다(whtIncomeAgg)
+    const X = whtIncomeAgg(dailyLogs, incomePays);
+    const extra = [X.daily, X.other, X.interest, X.dividend];
     return {
       work: aggOf(rows.filter((r) => !r.biz)),
       biz: aggOf(rows.filter((r) => r.biz)),
       all,
       ret,
+      daily: X.daily, other: X.other, interest: X.interest, dividend: X.dividend, corpCount: X.corpCount,
       irpN: retRows.length - retList.length,
-      //   총합계(A99)·납부 세액 = 급여 명세 + 퇴직소득
-      sum: { n: all.n + ret.n, taxable: all.taxable + ret.pay, incomeTax: all.incomeTax + ret.incomeTax, localTax: all.localTax + ret.localTax },
+      //   총합계(A99)·납부 세액 = 급여 명세 + 퇴직소득 + 일용·기타·이자·배당
+      sum: { n: all.n + ret.n + extra.reduce((s, a) => s + a.n, 0), taxable: all.taxable + ret.pay + extra.reduce((s, a) => s + a.pay, 0),
+        incomeTax: all.incomeTax + ret.incomeTax + extra.reduce((s, a) => s + a.tax, 0), localTax: all.localTax + ret.localTax + extra.reduce((s, a) => s + a.local, 0) },
       lastIssued: rows.reduce<string | null>((m, r) => (r.issuedAt && (!m || r.issuedAt > m) ? r.issuedAt : m), null),
     };
-  }, [rows, retRows]);
+  }, [rows, retRows, dailyLogs, incomePays]);
 
   //   ── 신고서 서식 · 마감 (2026-10-12 세무 2차 1단계) — 숫자는 위 T 그대로(전자신고 파일과 같은 값) ──
   const canTaxWrite = isMaster || hasPerm("/finance/tax-filing");
@@ -359,11 +391,20 @@ export default function TaxFilingPage() {
     work: { n: T.work.n, pay: T.work.taxable, tax: T.work.incomeTax },
     biz: { n: T.biz.n, pay: T.biz.taxable, tax: T.biz.incomeTax },
     ret: { n: T.ret.n, pay: T.ret.pay, tax: T.ret.incomeTax },
+    daily: T.daily, other: T.other, interest: T.interest, dividend: T.dividend,
   }), [T]);
   const whtSources = useMemo(() => ({
     payroll: rows.map((r) => `${r.employee_id}:${r.period_month}`),
     retirement: retRows.filter((r) => !r.irp_deferred).map((r) => r.id),
-  }), [rows, retRows]);
+    daily: dailyLogs.map((r) => r.id),
+    income: incomePays.map((r) => r.id),
+  }), [rows, retRows, dailyLogs, incomePays]);
+  //   마감 때 신고본에 같이 남기는 것 — 급여대장(발송분)·일용·지급 기록·퇴직소득 (4단계)
+  const whtSchedules = useMemo(() => ({
+    payrollLedger: rows.map(({ issuedAt: _i, ...r }) => r),
+    daily: dailyLogs, income: incomePays,
+    retirement: retRows.map((r) => ({ id: r.id, employee_name: r.employee_name, paid_on: r.paid_on, retirement_pay: r.retirement_pay, income_tax: r.income_tax, local_tax: r.local_tax, irp_deferred: r.irp_deferred })),
+  }), [rows, dailyLogs, incomePays, retRows]);
 
   //   근로 간이지급명세서 — 인별 × 월 피벗 (지급액 = 과세, 서식 작성요령과 같다)
   const workStmt = useMemo(() => {
@@ -396,13 +437,14 @@ export default function TaxFilingPage() {
 
   const { toast } = useToast();
   const exportWht = () => {
-    if (!rows.length && !retRows.length) { toast("이 달 급여 발송·퇴직금 지급 기록이 없습니다", "info"); return; }
+    if (!rows.length && !retRows.length && !dailyLogs.length && !incomePays.length) { toast("이 달 급여 발송·퇴직금·일용·지급 기록이 없습니다", "info"); return; }
     const wb = XLSX.utils.book_new();
     const ws1 = XLSX.utils.aoa_to_sheet([
       ["원천징수이행상황신고서 준비", `${month} 지급분 (귀속·지급 같은 달 기준)`, `신고·납부 기한 ${dueOf(month)}`, "발송된 급여 명세 기준 (오너뷰)"], [],
       ["구분", "코드", "인원", "총지급액(과세)", "징수 소득세"],
       ["근로소득 간이세액", "A01", T.work.n, num(T.work.taxable), num(T.work.incomeTax)],
-      ["근로소득 가감계", "A10", T.work.n, num(T.work.taxable), num(T.work.incomeTax)],
+      ...(T.daily.n > 0 ? [["근로소득 일용근로", "A03", T.daily.n, num(T.daily.pay), num(T.daily.tax)]] : []),
+      ["근로소득 가감계", "A10", T.work.n + T.daily.n, num(T.work.taxable + T.daily.pay), num(T.work.incomeTax + T.daily.tax)],
       ...(T.biz.n > 0 ? [
         ["사업소득 매월징수", "A25", T.biz.n, num(T.biz.taxable), num(T.biz.incomeTax)],
         ["사업소득 가감계", "A30", T.biz.n, num(T.biz.taxable), num(T.biz.incomeTax)],
@@ -411,21 +453,37 @@ export default function TaxFilingPage() {
         ["퇴직소득 그 외", "A22", T.ret.n, num(T.ret.pay), num(T.ret.incomeTax)],
         ["퇴직소득 가감계", "A20", T.ret.n, num(T.ret.pay), num(T.ret.incomeTax)],
       ] : []),
+      ...(T.other.n > 0 ? [["기타소득 그 외", "A42", T.other.n, num(T.other.pay), num(T.other.tax)], ["기타소득 가감계", "A40", T.other.n, num(T.other.pay), num(T.other.tax)]] : []),
+      ...(T.interest.n > 0 ? [["이자소득", "A50", T.interest.n, num(T.interest.pay), num(T.interest.tax)]] : []),
+      ...(T.dividend.n > 0 ? [["배당소득", "A60", T.dividend.n, num(T.dividend.pay), num(T.dividend.tax)]] : []),
       ["총합계", "A99", T.sum.n, num(T.sum.taxable), num(T.sum.incomeTax)], [],
       ["납부 세액(홈택스 · 소득세)", "", "", "", num(T.sum.incomeTax)],
       ["지방소득세 특별징수분(위택스 · 별도 신고)", "", "", "", num(T.sum.localTax)], [],
-      ["※ 기타소득 지급분이 있으면 직접 더해야 합니다. 프리랜서(사업소득 3.3%)는 구성원 고용형태를 '프리랜서'로 두면 자동으로 A25에 잡힙니다."],
+      ["※ 프리랜서(사업소득 3.3%)는 고용형태 '프리랜서', 일용근로는 '일용직' + 일용 근무 기록, 기타·이자·배당은 지급 기록으로 잡힙니다."],
+      ...(T.corpCount > 0 ? [[`※ 법인에게 준 이자·배당 ${T.corpCount}건은 법인세 원천(A80)이라 위 표에 없습니다 — 세무사 확인.`]] : []),
       ...(T.irpN > 0 ? [[`※ IRP 이전(과세이연) 퇴직금 ${T.irpN}건은 위 표에 없습니다. 홈택스에서 직접 신고하세요.`]] : []),
     ]);
     ws1["!cols"] = [{ wch: 40 }, { wch: 6 }, { wch: 6 }, { wch: 16 }, { wch: 14 }];
     XLSX.utils.book_append_sheet(wb, ws1, "신고서");
+    //   급여대장(발송분) — 4단계: 4대보험·공제 합계·실지급액까지
+    const sumOf = (k: "pension" | "health" | "ltc" | "employment" | "deductions" | "net") => rows.reduce((s, r) => s + Number(r[k] || 0), 0);
     const ws2 = XLSX.utils.aoa_to_sheet([
-      ["이름", "사번", "구분", "총지급액(과세)", "비과세", "소득세", "지방소득세"],
-      ...rows.map((r) => [r.name, r.employee_number || "", r.biz ? "사업소득" : "근로", num(r.taxable), num(r.nonTaxable), num(r.incomeTax), num(r.localIncomeTax)]),
-      ["합계", "", "", num(T.all.taxable), num(T.all.nonTaxable), num(T.all.incomeTax), num(T.all.localTax)],
+      ["이름", "사번", "구분", "과세 지급액", "비과세", "지급 합계", "국민연금", "건강보험", "장기요양", "고용보험", "소득세", "지방소득세", "공제 합계", "실지급액"],
+      ...rows.map((r) => [r.name, r.employee_number || "", r.biz ? "사업소득" : "근로", num(r.taxable), num(r.nonTaxable), num(r.taxable + r.nonTaxable), num(r.pension), num(r.health), num(r.ltc), num(r.employment), num(r.incomeTax), num(r.localIncomeTax), num(r.deductions), num(r.net)]),
+      ["합계", "", "", num(T.all.taxable), num(T.all.nonTaxable), num(T.all.taxable + T.all.nonTaxable), num(sumOf("pension")), num(sumOf("health")), num(sumOf("ltc")), num(sumOf("employment")), num(T.all.incomeTax), num(T.all.localTax), num(sumOf("deductions")), num(sumOf("net"))],
     ]);
-    ws2["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
-    XLSX.utils.book_append_sheet(wb, ws2, "인별 명세");
+    ws2["!cols"] = [{ wch: 12 }, { wch: 8 }, { wch: 8 }, ...Array(11).fill({ wch: 12 })];
+    XLSX.utils.book_append_sheet(wb, ws2, "급여대장");
+    if (dailyLogs.length) {
+      const wsd = XLSX.utils.aoa_to_sheet([["이름", "근무일", "지급일", "일당", "비과세", "소득세", "지방소득세", "메모"],
+        ...dailyLogs.map((r) => [r.employee_name, r.work_date, r.paid_on, num(r.daily_wage), num(r.non_taxable), num(r.income_tax), num(r.local_tax), r.memo || ""])]);
+      XLSX.utils.book_append_sheet(wb, wsd, "일용근로");
+    }
+    if (incomePays.length) {
+      const wsp = XLSX.utils.aoa_to_sheet([["받는 사람", "개인/법인", "소득", "세부", "지급일", "지급액", "필요경비", "세율(%)", "소득세", "지방소득세", "주민번호(세무사 기입)", "메모"],
+        ...incomePays.map((r) => [r.payee_name, r.payee_kind === "corp" ? "법인" : "개인", INCOME_KIND_LABEL[r.income_kind], r.sub_kind || "", r.paid_on, num(r.amount), num(r.necessary_expense), r.tax_rate, num(r.income_tax), num(r.local_tax), "", r.memo || ""])]);
+      XLSX.utils.book_append_sheet(wb, wsp, "기타·이자·배당");
+    }
     if (retRows.length) {
       const ws3 = XLSX.utils.aoa_to_sheet([
         ["이름", "지급일", "근속 시작", "퇴사일", "근속연수", "퇴직금", "퇴직소득세", "지방소득세", "실지급액", "비고"],
@@ -574,6 +632,65 @@ export default function TaxFilingPage() {
     </div>
   );
 
+  //   일용근로 · 기타/이자/배당 지급 (2026-10-14 4단계) — 퇴직소득 패널과 같은 자리·같은 모양
+  const dailyPanel = (
+    <div className="pnl-panel">
+      <div className="tax-retire-head">
+        <h3>일용근로 지급</h3>
+        {canWriteRetire && <button type="button" className="btn-secondary btn-sm" onClick={() => setDailyDialog({ edit: null })}>+ 일용 근무 기록</button>}
+      </div>
+      <p>고용형태 &apos;일용직&apos; 구성원의 날마다 일당입니다. 지급일이 이 달인 기록이 신고서 A03·A10에 들어갑니다.</p>
+      {dailyLogs.length === 0 ? (
+        <div className="collect-empty">{month} 지급분 일용 근무 기록이 없습니다.{!canWriteRetire && <><br /><span className="vr-warn">급여 권한이 없으면 일용 기록이 보이지 않아 신고서에서도 빠집니다.</span></>}</div>
+      ) : (
+        <div className="stg-table-wrap vr-scroll">
+          <table className="ev-table ev-lined table-inv-status-sm">
+            <thead><tr><th>이름</th><th>근무일</th><th>지급일</th><th>일당</th><th>비과세</th><th>소득세</th><th>지방소득세</th><th>메모</th></tr></thead>
+            <tbody>
+              {dailyLogs.map((r) => (
+                <tr key={r.id} className={canWriteRetire ? "cursor-pointer" : undefined} onClick={canWriteRetire ? () => setDailyDialog({ edit: r }) : undefined} title={canWriteRetire ? "눌러서 고치기·지우기" : undefined}>
+                  <td className="text-left">{r.employee_name}</td><td className="tc mono-number">{r.work_date}</td><td className="tc mono-number">{r.paid_on}</td>
+                  <td className="tr mono-number">{won(r.daily_wage)}</td><td className="tr mono-number">{won(r.non_taxable)}</td>
+                  <td className="tr mono-number">{won(r.income_tax)}</td><td className="tr mono-number">{won(r.local_tax)}</td><td className="text-left ev-dim">{r.memo || ""}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot><tr className="vr-sum"><td className="text-left">합계 ({T.daily.n}명 · {dailyLogs.length}일)</td><td></td><td></td><td className="tr mono-number">{won(dailyLogs.reduce((s, r) => s + r.daily_wage, 0))}</td><td></td><td className="tr mono-number">{won(T.daily.tax)}</td><td className="tr mono-number">{won(T.daily.local)}</td><td></td></tr></tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+  const incomePanel = (
+    <div className="pnl-panel">
+      <div className="tax-retire-head">
+        <h3>기타·이자·배당 지급</h3>
+        {canTaxWrite && <button type="button" className="btn-secondary btn-sm" onClick={() => setPayDialog({ edit: null })}>+ 지급 기록</button>}
+      </div>
+      <p>강연료·원고료 같은 기타소득, 빌린 돈의 이자, 배당입니다. 개인에게 준 것이 신고서 A42·A40·A50·A60에 들어갑니다.
+        {T.corpCount > 0 && <b className="vr-warn"> 법인에게 준 {T.corpCount}건은 법인세 원천(A80)이라 신고서에 없습니다 — 세무사 확인.</b>}</p>
+      {incomePays.length === 0 ? (
+        <div className="collect-empty">{month} 지급분 기타·이자·배당 기록이 없습니다.</div>
+      ) : (
+        <div className="stg-table-wrap vr-scroll">
+          <table className="ev-table ev-lined table-inv-status-sm">
+            <thead><tr><th>받는 사람</th><th>소득</th><th>지급일</th><th>지급액</th><th>필요경비</th><th>세율</th><th>소득세</th><th>지방소득세</th></tr></thead>
+            <tbody>
+              {incomePays.map((r) => (
+                <tr key={r.id} className={canTaxWrite ? "cursor-pointer" : undefined} onClick={canTaxWrite ? () => setPayDialog({ edit: r }) : undefined} title={canTaxWrite ? "눌러서 고치기·지우기" : undefined}>
+                  <td className="text-left">{r.payee_name}{r.payee_kind === "corp" && <span className="ev-dim"> (법인)</span>}</td>
+                  <td className="tc">{INCOME_KIND_LABEL[r.income_kind]}{r.sub_kind ? ` · ${r.sub_kind}` : ""}</td><td className="tc mono-number">{r.paid_on}</td>
+                  <td className="tr mono-number">{won(r.amount)}</td><td className="tr mono-number">{won(r.necessary_expense)}</td><td className="tc mono-number">{r.tax_rate}%</td>
+                  <td className="tr mono-number">{won(r.income_tax)}</td><td className="tr mono-number">{won(r.local_tax)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+
   if (!permLoading && !(isMaster || hasPerm("/finance/tax-filing")))
     return <AccessDenied detail="세무 신고 화면에 대한 권한이 없습니다. 회사 마스터에게 요청하세요." />;
 
@@ -611,6 +728,16 @@ export default function TaxFilingPage() {
         </div>
       )}
       {vatEfileOpen && companyId && <VatEfileDialog companyId={companyId} year={year} period={vatPeriod} onClose={() => setVatEfileOpen(false)} />}
+      {dailyDialog && companyId && (
+        <DailyLogDialog companyId={companyId} edit={dailyDialog.edit} onClose={() => setDailyDialog(null)}
+          defaultDate={month === todayKst().slice(0, 7) ? todayKst() : `${month}-01`}
+          onSaved={() => qc.invalidateQueries({ queryKey: ["daily-work-logs"] })} />
+      )}
+      {payDialog && companyId && (
+        <IncomePaymentDialog companyId={companyId} edit={payDialog.edit} onClose={() => setPayDialog(null)}
+          defaultDate={month === todayKst().slice(0, 7) ? todayKst() : `${month}-01`}
+          onSaved={() => qc.invalidateQueries({ queryKey: ["income-payments"] })} />
+      )}
       {retDialog && companyId && (
         <RetirementPaymentDialog companyId={companyId} edit={retDialog.edit} onClose={() => setRetDialog(null)}
           defaultPaidOn={month === todayKst().slice(0, 7) ? todayKst() : `${month}-01`}
@@ -635,10 +762,10 @@ export default function TaxFilingPage() {
           {tab === "wht" && (<>
             <QueryBar right={<>
               {efileOn && (
-                <button type="button" className="btn-secondary btn-sm" disabled={rows.length === 0 && T.ret.n === 0} onClick={() => { setEfileIssues([]); setEfileOpen(true); }}
+                <button type="button" className="btn-secondary btn-sm" disabled={T.sum.n === 0} onClick={() => { setEfileIssues([]); setEfileOpen(true); }}
                   title="홈택스 '신고서 파일 변환' 업로드용 전산매체 파일 (C103900). 베타">전자신고 파일 (베타)</button>
               )}
-              <button type="button" className="btn-secondary btn-sm" onClick={exportWht} title="신고서 요약 + 인별 명세 · 2개 시트">세무사 전달 엑셀</button>
+              <button type="button" className="btn-secondary btn-sm" onClick={exportWht} title="신고서 요약 + 급여대장 + 퇴직·일용·기타/이자/배당(있으면)">세무사 전달 엑셀</button>
             </>}>
               <label className="text-xs font-semibold text-[var(--text-dim)]">지급월</label>
               <MonthSelect className="inv-input fin-close-month" value={month} onChange={(v) => v && setMonth(v)} ariaLabel="지급월" />
@@ -843,9 +970,9 @@ export default function TaxFilingPage() {
                   )}
                 </div>
               )
-            ) : isLoading || retLoading ? (
+            ) : isLoading || retLoading || dailyLoading || payLoading ? (
               <div className="collect-empty">불러오는 중…</div>
-            ) : rows.length === 0 && retRows.length === 0 ? (<>
+            ) : rows.length === 0 && retRows.length === 0 && dailyLogs.length === 0 && incomePays.length === 0 ? (<>
               <div className="collect-empty">
                 {month} 지급분 <b>급여 발송 기록이 없습니다.</b><br />
                 급여 명세서를 발송하면 신고서에 반영됩니다.<br />
@@ -854,20 +981,21 @@ export default function TaxFilingPage() {
               {/*   무실적 달도 0원 신고서를 마감할 수 있게 (2026-10-12 결정 258 · 빈 상태) */}
               <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
                 periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급 (무실적)`}
-                compute={whtCompute} sources={whtSources} loading={isLoading || retLoading} />
+                compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading} />
               {retirePanel}
+              {dailyPanel}
+              {incomePanel}
             </>) : (
               <div className="vr-wrap">
                 <p className="inv-hint" title="귀속월과 지급월을 같은 달로 봅니다">
                   {month} 지급분 급여 명세 {T.all.n}명 기준입니다.
                   {T.lastIssued && <> 마지막 발송 <b className="mono-number">{T.lastIssued.slice(0, 10)}</b> 이후 고친 급여는 다시 발송해야 반영됩니다.</>}
-                  {" 프리랜서는 사업소득으로 잡힙니다. 퇴직금은 아래 '퇴직소득 지급'에 기록하면 들어갑니다."}
-                  <b className="vr-warn"> 기타소득 지급분은 직접 더해 신고하세요.<span className="ui-sub">오너뷰가 기록하지 않는 소득입니다.</span></b>
+                  {" 프리랜서는 사업소득으로 잡힙니다. 퇴직금·일용근로·기타/이자/배당은 아래 기록에 넣으면 들어갑니다."}
                 </p>
                 {/*   서식 화면 · 마감 (2026-10-12 세무 2차 1단계, 결정 258~260) — 예전 '원천징수이행상황신고서' 요약 표를 대신한다 */}
                 <TaxReturnSheet layout="wht" kind="wht" companyId={companyId} userId={userId} canWrite={canTaxWrite}
                   periodKey={month} title={`원천징수이행상황신고서 · ${month} 귀속·지급`}
-                  compute={whtCompute} sources={whtSources} loading={isLoading || retLoading} />
+                  compute={whtCompute} sources={whtSources} schedules={whtSchedules} loading={isLoading || retLoading || dailyLoading || payLoading} />
                 <div className="pnl-grid2">
                   <div className="pnl-panel">
                     <h3>지방소득세 (특별징수)</h3><p>소득세의 10%를 <b>위택스</b>에 따로 신고·납부합니다.</p>
@@ -877,33 +1005,43 @@ export default function TaxFilingPage() {
                         <tr><td className="text-left">근로소득분 지방소득세</td><td className="tr mono-number">{T.work.n}</td><td className="tr mono-number">{won(T.work.localTax)}</td></tr>
                         {T.biz.n > 0 && <tr><td className="text-left">사업소득분 지방소득세</td><td className="tr mono-number">{T.biz.n}</td><td className="tr mono-number">{won(T.biz.localTax)}</td></tr>}
                         {T.ret.n > 0 && <tr><td className="text-left">퇴직소득분 지방소득세</td><td className="tr mono-number">{T.ret.n}</td><td className="tr mono-number">{won(T.ret.localTax)}</td></tr>}
+                        {T.daily.n > 0 && <tr><td className="text-left">일용근로분 지방소득세</td><td className="tr mono-number">{T.daily.n}</td><td className="tr mono-number">{won(T.daily.local)}</td></tr>}
+                        {T.other.n > 0 && <tr><td className="text-left">기타소득분 지방소득세</td><td className="tr mono-number">{T.other.n}</td><td className="tr mono-number">{won(T.other.local)}</td></tr>}
+                        {(T.interest.n + T.dividend.n) > 0 && <tr><td className="text-left">이자·배당소득분 지방소득세</td><td className="tr mono-number">{T.interest.n + T.dividend.n}</td><td className="tr mono-number">{won(T.interest.local + T.dividend.local)}</td></tr>}
                         <tr className="vr-total"><td className="text-left" colSpan={2}><b>납부 세액 (위택스)</b></td><td className="tr mono-number"><b>{won(T.sum.localTax)}</b></td></tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
+                {/*   급여대장(발송분) — 2026-10-14 4단계: 예전 '인별 명세'를 4대보험·공제·실지급액까지 넓혔다. 마감하면 신고본에 같이 남는다 */}
                 {rows.length > 0 && <div className="pnl-panel">
-                  <h3>인별 명세</h3><p title="구분은 현재 고용형태 기준입니다">발송된 급여 명세 기준입니다.</p>
+                  <h3>급여대장</h3><p title="구분은 현재 고용형태 기준입니다">발송된 급여 명세 기준 · 원천세를 마감하면 이 대장도 신고본에 같이 남습니다.</p>
                   <div className="stg-table-wrap vr-scroll">
                     <table className="ev-table ev-lined table-inv-status-sm">
-                      <thead><tr><th>이름</th><th>구분</th><th>총지급액 (과세)</th><th>비과세</th><th>소득세</th><th>지방소득세</th></tr></thead>
+                      <thead><tr><th>이름</th><th>구분</th><th>과세 지급액</th><th>비과세</th><th>국민연금</th><th>건강보험</th><th>장기요양</th><th>고용보험</th><th>소득세</th><th>지방소득세</th><th>공제 합계</th><th>실지급액</th></tr></thead>
                       <tbody>
                         {rows.map((r) => (
                           <tr key={r.employee_id}>
                             <td className="text-left">{r.name}{r.employee_number && <span className="ev-dim"> #{r.employee_number}</span>}</td>
                             <td className="tc">{r.biz ? "사업소득" : "근로"}</td>
-                            <td className="tr mono-number">{won(r.taxable)}</td>
-                            <td className="tr mono-number">{won(r.nonTaxable)}</td>
-                            <td className="tr mono-number">{won(r.incomeTax)}</td>
-                            <td className="tr mono-number">{won(r.localIncomeTax)}</td>
+                            <td className="tr mono-number">{won(r.taxable)}</td><td className="tr mono-number">{won(r.nonTaxable)}</td>
+                            <td className="tr mono-number">{won(r.pension)}</td><td className="tr mono-number">{won(r.health)}</td><td className="tr mono-number">{won(r.ltc)}</td><td className="tr mono-number">{won(r.employment)}</td>
+                            <td className="tr mono-number">{won(r.incomeTax)}</td><td className="tr mono-number">{won(r.localIncomeTax)}</td>
+                            <td className="tr mono-number">{won(r.deductions)}</td><td className="tr mono-number">{won(r.net)}</td>
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot><tr className="vr-sum"><td className="text-left">합계 ({T.all.n}명)</td><td></td><td className="tr mono-number">{won(T.all.taxable)}</td><td className="tr mono-number">{won(T.all.nonTaxable)}</td><td className="tr mono-number">{won(T.all.incomeTax)}</td><td className="tr mono-number">{won(T.all.localTax)}</td></tr></tfoot>
+                      <tfoot><tr className="vr-sum"><td className="text-left">합계 ({T.all.n}명)</td><td></td>
+                        <td className="tr mono-number">{won(T.all.taxable)}</td><td className="tr mono-number">{won(T.all.nonTaxable)}</td>
+                        {(["pension", "health", "ltc", "employment"] as const).map((k) => <td key={k} className="tr mono-number">{won(rows.reduce((s, r) => s + r[k], 0))}</td>)}
+                        <td className="tr mono-number">{won(T.all.incomeTax)}</td><td className="tr mono-number">{won(T.all.localTax)}</td>
+                        <td className="tr mono-number">{won(rows.reduce((s, r) => s + r.deductions, 0))}</td><td className="tr mono-number">{won(rows.reduce((s, r) => s + r.net, 0))}</td></tr></tfoot>
                     </table>
                   </div>
                 </div>}
                 {retirePanel}
+                {dailyPanel}
+                {incomePanel}
               </div>
             )}
           </div>
