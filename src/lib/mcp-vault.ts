@@ -6,6 +6,8 @@ import { extractDocumentText, DOCUMENT_TEXT_EXTS } from "@/lib/copilot-attachmen
 import { validateFileMeta } from "@/lib/file-rules";
 import { randomBytes } from "node:crypto";
 
+//   파일보관함 잠금(브라우저 암호화) — 비밀번호는 서버에 없어 AI 도 열 수 없다(src/lib/vault-crypto.ts)
+const LOCKED_MSG = "비밀번호로 잠긴 파일이라 내용을 읽거나 내려받을 수 없습니다. 오너뷰 파일보관함에서 비밀번호를 넣어 여세요.";
 const MAX_BYTES = 100 * 1024 * 1024;      // 글자 뽑기는 100MB 까지(함수 300초 안). 원본 내려받기(download_vault_files)는 크기 제한 없음
 const PAGE_CHARS = 60_000;                // 한 번에 돌려주는 글자 수 — 긴 문서는 offset 으로 이어 읽는다
 const IMAGE_EXTS: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" };
@@ -31,7 +33,7 @@ export const VAULT_TOOLS = [
     name: "read_vault_file",
     description:
       "파일보관함 파일 하나의 내용을 글자로 읽는다(HWP·HWPX·PDF·DOCX·XLSX·XLS·CSV·TXT·MD·JSON). 이미지(PNG·JPG·GIF·WEBP)는 그림으로 준다. " +
-      "긴 문서는 한 번에 6만 자까지 — 결과의 이어 읽기 offset 을 넘기면 이어서 읽는다. 100MB 까지. 스캔 PDF(글자 없는 그림)는 글자를 못 뽑는다. 원본 파일이 필요하면 download_vault_files.",
+      "긴 문서는 한 번에 6만 자까지 — 결과의 이어 읽기 offset 을 넘기면 이어서 읽는다. 100MB 까지. 스캔 PDF(글자 없는 그림)는 글자를 못 뽑는다. 목록에서 locked: true 인 파일은 비밀번호로 잠겨 읽을 수 없다. 원본 파일이 필요하면 download_vault_files.",
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: {
@@ -397,8 +399,10 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
     const files: unknown[] = [];
     for (const id of uniq) {
       const { data: meta } = await db.rpc("mcp_vault_file", { p_auth: tok.user_id, p_company: tok.company_id, p_file: id });
-      const f = meta as { id: string; name: string; size: number | null; bucket: string; storage_path: string | null; folder: string | null } | null;
+      const f = meta as { id: string; name: string; size: number | null; bucket: string; storage_path: string | null; folder: string | null; locked?: boolean } | null;
       if (!f) { files.push({ id, error: "파일이 없거나 볼 권한이 없습니다." }); continue; }
+      //   잠긴 파일은 비밀번호로 잠긴 덩어리라 내려받아도 쓸 수 없다 — 링크를 만들지 않는다
+      if (f.locked) { files.push({ id, name: f.name, error: LOCKED_MSG }); continue; }
       if (!f.storage_path) { files.push({ id, name: f.name, error: "저장된 실물이 없는 파일입니다." }); continue; }
       const { data: signed, error: sErr } = await db.storage.from(f.bucket).createSignedUrl(f.storage_path, DOWNLOAD_TTL_SEC);
       if (sErr || !signed?.signedUrl) { files.push({ id, name: f.name, error: "링크를 만들지 못했습니다." }); continue; }
@@ -421,7 +425,8 @@ export async function callVaultTool(tok: Tok, name: string, args: Record<string,
   const { data: meta, error } = await db.rpc("mcp_vault_file", { p_auth: tok.user_id, p_company: tok.company_id, p_file: fileId });
   if (error) { await log(tok, name, false, error.message.slice(0, 200)); return { content: text({ error: "파일을 확인하지 못했습니다." }), isError: true }; }
   if (!meta) { await log(tok, name, false, "not_visible"); return { content: text({ error: "파일이 없거나 볼 권한이 없습니다." }), isError: true }; }
-  const f = meta as { id: string; name: string; mime_type: string | null; size: number | null; bucket: string; storage_path: string | null; folder: string | null };
+  const f = meta as { id: string; name: string; mime_type: string | null; size: number | null; bucket: string; storage_path: string | null; folder: string | null; locked?: boolean };
+  if (f.locked) { await log(tok, name, false, "locked"); return { content: text({ error: LOCKED_MSG }), isError: true }; }
   if (!f.storage_path) return { content: text({ error: "저장된 실물이 없는 파일입니다." }), isError: true };
   if ((f.size ?? 0) > MAX_BYTES) return { content: text({ error: `파일이 너무 커서 글자를 뽑지 않습니다(${Math.round((f.size ?? 0) / 1048576)}MB, 100MB 까지). 원본이 필요하면 download_vault_files 로 내려받으세요.` }), isError: true };
 

@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Lock } from "lucide-react";
 import { appConfirm } from "@/components/global-confirm";
 import { useToast } from "@/components/toast";
 import { FileTypeIcon } from "@/components/file-type-icon";
@@ -19,7 +20,9 @@ import { getDepartments } from "@/lib/schedule";
 import {
   uploadFile, createFolder, getFolders, deleteFolder, moveFilesToFolder, searchFiles, deleteFile,
   downloadStoredFile, updateFolderVisibility, getFileVersions, getFolderFileCounts, type FolderVisibility,
+  lockVaultFile, unlockVaultFile, downloadLockedFile,
 } from "@/lib/file-storage";
+import { lockPasswordProblem } from "@/lib/vault-crypto";
 
 type Folder = {
   id: string; name: string; parent_id: string | null; created_at: string; created_by: string | null;
@@ -28,7 +31,14 @@ type Folder = {
 type VFile = {
   id: string; file_name: string; file_url: string; file_size: number | null; folder_id: string | null;
   uploaded_by: string | null; created_at: string; version: number | null;
+  /** 잠금 정보 — 있으면 비밀번호로만 열린다(src/lib/vault-crypto.ts) */
+  encryption?: unknown | null;
 };
+//   잠금 비밀번호 창 — 잠가서 올리기 · 열기 · 잠그기 · 풀기
+type PwAsk =
+  | { mode: "upload"; files: File[] }
+  | { mode: "open"; file: { id: string; file_name: string } }
+  | { mode: "lock" | "unlock"; file: VFile };
 
 const ROOT = null;
 const VIS_LABEL: Record<FolderVisibility, string> = { company: "회사 전체", departments: "부서", members: "사람", private: "나만" };
@@ -76,6 +86,12 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
   const [visFolder, setVisFolder] = useState<Folder | null>(null);
   const [visDraft, setVisDraft] = useState<{ visibility: FolderVisibility; depts: string[]; members: string[] }>({ visibility: "company", depts: [], members: [] });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lockInputRef = useRef<HTMLInputElement>(null);
+  const [pwAsk, setPwAsk] = useState<PwAsk | null>(null);
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+  const [pwErr, setPwErr] = useState("");
 
   useEffect(() => { const t = setTimeout(() => setDebounced(query.trim()), 250); return () => clearTimeout(t); }, [query]);
   useEffect(() => { if (!menuFor) return; const close = () => setMenuFor(null); window.addEventListener("click", close); return () => window.removeEventListener("click", close); }, [menuFor]);
@@ -229,7 +245,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
 
   // ── 올리기 — 지금 폴더로(맨 위면 폴더 밖) ──
   const uploadedRef = useRef<WeakSet<File>>(new WeakSet());
-  const uploadMany = async (list: File[]) => {
+  const uploadMany = async (list: File[], lockPassword?: string) => {
     const files = list.filter((f) => !uploadedRef.current.has(f));
     if (!files.length) return;
     const failed: string[] = [];
@@ -238,7 +254,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
       try {
         await uploadFile({
           companyId, bucket: "document-files", file, context: { folderId: current || undefined }, userId,
-          register: true,
+          register: true, lockPassword,
           onProgress: (pct) => setUpProg({ name: file.name, pct }),
         });
       } catch (err) { failed.push(`${file.name} · ${friendlyError(err, "알 수 없는 오류")}`); }
@@ -246,7 +262,42 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
     setUpProg(null);
     refreshFiles();
     if (failed.length) toast(`${failed.length}개 파일을 올리지 못했습니다: ${failed.slice(0, 3).join(" / ")}${failed.length > 3 ? " 외" : ""}`, "error");
-    else toast(`${files.length}개 파일을 올렸습니다`, "success");
+    else toast(lockPassword ? `${files.length}개 파일을 잠가서 올렸습니다` : `${files.length}개 파일을 올렸습니다`, "success");
+  };
+
+  // ── 잠금 — 잠긴 파일은 누르면 비밀번호부터 묻는다 ──
+  const askPw = (a: PwAsk) => { setPwAsk(a); setPw(""); setPw2(""); setPwErr(""); setMenuFor(null); };
+  const getFile = (f: { id: string; file_name: string; file_url: string; encryption?: unknown | null }, name = f.file_name) => {
+    if (f.encryption) askPw({ mode: "open", file: { id: f.id, file_name: name } });
+    else void downloadStoredFile(f.file_url, name);
+  };
+  const needsNewPw = pwAsk?.mode === "upload" || pwAsk?.mode === "lock";
+  const submitPw = async () => {
+    if (!pwAsk || pwBusy) return;
+    const problem = needsNewPw ? lockPasswordProblem(pw, pw2) : (pw ? null : "비밀번호를 넣어 주세요.");
+    if (problem) { setPwErr(problem); return; }
+    setPwBusy(true); setPwErr("");
+    try {
+      if (pwAsk.mode === "upload") {
+        const files = pwAsk.files;
+        setPwAsk(null);
+        await uploadMany(files, pw);
+      } else if (pwAsk.mode === "open") {
+        await downloadLockedFile(pwAsk.file, pw);
+        setPwAsk(null);
+      } else if (pwAsk.mode === "lock") {
+        const r = await lockVaultFile(pwAsk.file.id, pw, { companyId, userId });
+        setPwAsk(null); refreshFiles(); qc.invalidateQueries({ queryKey: ["file-versions"] });
+        toast(r.locked > 1 ? `잠갔습니다 (지난 판 포함 ${r.locked}개)` : "잠갔습니다", "success");
+      } else {
+        const r = await unlockVaultFile(pwAsk.file.id, pw, { companyId, userId });
+        setPwAsk(null); refreshFiles(); qc.invalidateQueries({ queryKey: ["file-versions"] });
+        toast(r.wrong > 0 ? `잠금을 풀었습니다. 비밀번호가 다른 지난 판 ${r.wrong}개는 잠긴 채로 남았습니다` : "잠금을 풀었습니다", r.wrong > 0 ? "info" : "success");
+      }
+    } catch (e) {
+      const m = String((e as Error)?.message || "");
+      setPwErr((e as Error)?.name === "WrongPasswordError" || m.includes("비밀번호가 맞지") ? "비밀번호가 맞지 않습니다." : errText(e, "처리하지 못했습니다"));
+    } finally { setPwBusy(false); }
   };
 
   // ── 고른 파일 옮기기·지우기 ──
@@ -316,6 +367,27 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
       </div>
     );
   };
+
+  //   파일 메뉴 — 잠그기·잠금 풀기는 올린 사람이나 삭제 권한자만(DB 트리거도 같은 기준으로 막는다)
+  const fileMenu = (f: VFile) => {
+    if (!canDeleteFile(f)) return null;
+    const key = `file:${f.id}`;
+    return (
+      <div className="vx-menu-wrap" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="vx-more" aria-label={`${f.file_name} 파일 메뉴`} onClick={() => setMenuFor(menuFor === key ? null : key)}>⋯</button>
+        {menuFor === key && (
+          <div className="vx-menu" role="menu">
+            {f.encryption
+              ? <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "unlock", file: f })}>잠금 풀기</button>
+              : <button type="button" role="menuitem" className="vx-menu-item" onClick={() => askPw({ mode: "lock", file: f })}>비밀번호로 잠그기</button>}
+          </div>
+        )}
+      </div>
+    );
+  };
+  const lockMark = (f: { encryption?: unknown | null }) => f.encryption
+    ? <span className="vx-lock-mark" title="잠긴 파일 · 비밀번호를 알아야 열립니다"><Lock size={13} strokeWidth={2.4} aria-label="잠김" /></span>
+    : null;
 
   const verLabel = (f: VFile) => Number(f.version || 1) > 1
     ? <button type="button" className="vx-ver-btn" title="지난 판을 봅니다." onClick={(e) => { e.stopPropagation(); setVerFile(f); }}>v{f.version}</button>
@@ -414,7 +486,12 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
             onClick={() => fileInputRef.current?.click()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16" /></svg>올리기
           </button>
-          <input ref={fileInputRef} type="file" multiple hidden onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; void uploadMany(l); }} />
+          <button type="button" className="btn-secondary btn-sm vx-tool-btn" title="비밀번호를 아는 사람만 열 수 있게 잠가서 올립니다"
+            onClick={() => lockInputRef.current?.click()}>
+            <Lock size={15} strokeWidth={2.4} />잠가서 올리기
+          </button>
+          <input ref={fileInputRef} type="file" multiple hidden aria-label="올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; void uploadMany(l); }} />
+          <input ref={lockInputRef} type="file" multiple hidden aria-label="잠가서 올릴 파일 고르기" onChange={(e) => { const l = Array.from(e.target.files || []); e.target.value = ""; if (l.length) askPw({ mode: "upload", files: l }); }} />
         </div>
 
         <div className={dragOver ? "vx-box vx-box-drop" : "vx-box"}
@@ -474,7 +551,7 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                           className={on ? "collect-chk collect-chk-on" : mine ? "collect-chk" : "collect-chk doc-file-chk-locked"}>{on ? "✓" : ""}</button>
                         <FileTypeIcon name={f.file_name} size={24} />
                         <div className="vx-name-stack">
-                          <button type="button" className="vx-file-title" title={f.file_name} onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>{f.file_name}</button>
+                          <button type="button" className="vx-file-title" title={f.file_name} onClick={() => getFile(f)}>{lockMark(f)}{f.file_name}</button>
                           {Number(f.version || 1) > 1 && <span className="vx-sub">{verLabel(f)}</span>}
                           {searching && (
                             <span className="vx-sub"><button type="button" className="vx-loc-btn" onClick={() => open(f.folder_id)}>{locOf(f.folder_id)}</button></span>
@@ -485,9 +562,10 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                       <div className="vx-cell mono-number">{String(f.created_at || "").slice(0, 10)}</div>
                       <div className="vx-cell vx-num mono-number">{fmtSize(Number(f.file_size || 0))}</div>
                       <div className="vx-actions">
-                        <button type="button" className="btn-secondary btn-sm vx-get-btn" aria-label={`${f.file_name} 내려받기`} onClick={() => void downloadStoredFile(f.file_url, f.file_name)}>
+                        <button type="button" className="btn-secondary btn-sm vx-get-btn" aria-label={`${f.file_name} 내려받기`} onClick={() => getFile(f)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 4v12M6 10l6 6 6-6M4 20h16" /></svg>받기
                         </button>
+                        {fileMenu(f)}
                       </div>
                     </div>
                   );
@@ -522,13 +600,14 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
                   const on = selectedIds.has(f.id);
                   return (
                     <div key={f.id} className={on ? "vx-card vx-card-file vx-card-on" : "vx-card vx-card-file"}
-                      onClick={() => void downloadStoredFile(f.file_url, f.file_name)} title={`${f.file_name} · 눌러서 내려받기`}>
+                      onClick={() => getFile(f)} title={f.encryption ? `${f.file_name} · 잠긴 파일 · 눌러서 비밀번호 입력` : `${f.file_name} · 눌러서 내려받기`}>
                       {mine && (
                         <button type="button" aria-label="선택" onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}
                           className={on ? "collect-chk collect-chk-on vx-card-chk" : "collect-chk vx-card-chk"}>{on ? "✓" : ""}</button>
                       )}
                       <FileTypeIcon name={f.file_name} size={56} />
-                      <span className="vx-card-title vx-card-file-title">{f.file_name}</span>
+                      <div className="vx-card-menu">{fileMenu(f)}</div>
+                      <span className="vx-card-title vx-card-file-title">{lockMark(f)}{f.file_name}</span>
                       <span className="vx-sub">
                         {searching
                           ? <button type="button" className="vx-loc-btn" onClick={(e) => { e.stopPropagation(); open(f.folder_id); }}>{locOf(f.folder_id)}</button>
@@ -616,15 +695,54 @@ export function VaultExplorer({ companyId, userId }: { companyId: string; userId
             {(verList as any[]).map((v) => (
               <div key={v.id} className="vx-ver-row">
                 <FileTypeIcon name={v.file_name} size={26} />
-                <b className="mono-number">v{v.version}</b>
+                <b className="mono-number">v{v.version}</b>{lockMark(v)}
                 <span className="mono-number vx-dim">{String(v.created_at || "").slice(0, 10)}</span>
                 <span className="mono-number vx-dim">{fmtSize(Number(v.file_size || 0))}</span>
-                <button type="button" className="btn-secondary btn-sm vx-ver-get" onClick={() => void downloadStoredFile(v.file_url, `${v.file_name.replace(/(\.[^.]+)?$/, ` (v${v.version})$1`)}`)}>내려받기</button>
+                <button type="button" className="btn-secondary btn-sm vx-ver-get" onClick={() => getFile(v, `${v.file_name.replace(/(\.[^.]+)?$/, ` (v${v.version})$1`)}`)}>내려받기</button>
               </div>
             ))}
             <div className="phv3-modal-actions">
               <button type="button" className="btn-secondary btn-sm" onClick={() => setVerFile(null)}>닫기</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 잠금 비밀번호 — 비밀번호는 이 창 밖으로 나가지 않는다(저장 안 함) ── */}
+      {pwAsk && (
+        <div className="phv3-overlay" onClick={(e) => { if (e.target === e.currentTarget && !pwBusy) setPwAsk(null); }}>
+          <div className="phv3-modal" role="dialog" aria-modal="true" aria-label="파일 잠금 비밀번호">
+            <h3 className="phv3-modal-title">
+              {pwAsk.mode === "upload" ? `잠가서 올리기 · 파일 ${pwAsk.files.length}개`
+                : pwAsk.mode === "open" ? `"${pwAsk.file.file_name}" 열기`
+                : pwAsk.mode === "lock" ? `"${pwAsk.file.file_name}" 잠그기`
+                : `"${pwAsk.file.file_name}" 잠금 풀기`}
+            </h3>
+            <p className="phv3-modal-desc">
+              {pwAsk.mode === "open" ? "비밀번호를 넣으면 이 브라우저 안에서 풀어서 내려받습니다."
+                : pwAsk.mode === "unlock" ? "잠금을 풀면 원본으로 다시 저장돼, 이 폴더를 볼 수 있는 사람은 누구나 열 수 있습니다. 지난 판도 같이 풀립니다."
+                : `이 비밀번호를 아는 사람만 열 수 있습니다.${pwAsk.mode === "lock" && Number(pwAsk.file.version || 1) > 1 ? " 지난 판도 같이 잠깁니다." : ""} 파일 이름·크기는 목록에 그대로 보입니다.`}
+            </p>
+            {needsNewPw && (
+              <div className="vx-pw-warn">
+                비밀번호는 어디에도 저장되지 않습니다. <b>잊으면 오너뷰 운영자도 파일을 되살릴 수 없습니다.</b> 따로 안전한 곳에 적어 두세요.
+              </div>
+            )}
+            <form className="vx-pw-form" onSubmit={(e) => { e.preventDefault(); void submitPw(); }}>
+              <input type="password" autoFocus autoComplete={needsNewPw ? "new-password" : "current-password"} className="vx-pw-input"
+                placeholder={needsNewPw ? "비밀번호 (8자 이상)" : "비밀번호"} value={pw} onChange={(e) => setPw(e.target.value)} disabled={pwBusy} />
+              {needsNewPw && (
+                <input type="password" autoComplete="new-password" className="vx-pw-input" placeholder="비밀번호 다시 입력"
+                  value={pw2} onChange={(e) => setPw2(e.target.value)} disabled={pwBusy} />
+              )}
+              {pwErr && <div className="vx-pw-err" role="alert">{pwErr}</div>}
+              <div className="phv3-modal-actions">
+                <button type="button" className="btn-secondary btn-sm" disabled={pwBusy} onClick={() => setPwAsk(null)}>취소</button>
+                <button type="submit" className="btn-primary btn-sm" disabled={pwBusy}>
+                  {pwBusy ? "처리 중…" : pwAsk.mode === "upload" ? "잠가서 올리기" : pwAsk.mode === "open" ? "열기" : pwAsk.mode === "lock" ? "잠그기" : "잠금 풀기"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

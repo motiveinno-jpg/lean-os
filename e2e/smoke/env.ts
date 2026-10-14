@@ -49,3 +49,13 @@ export async function qaSession(): Promise<any> {
   if (!s.access_token) throw new Error("QA 계정 로그인 실패");
   return s;
 }
+
+/** 저장소 파일을 서비스 권한으로 글자로 읽는다(잠금 점검: 서버에 원문이 없는지) */
+export async function storageText(bucket: string, path: string): Promise<string> {
+  const { service } = await projectKeys();
+  const r = await fetch(`${SB_URL}/storage/v1/object/${bucket}/${path.split("/").map(encodeURIComponent).join("/")}`, {
+    headers: { apikey: service, Authorization: `Bearer ${service}` },
+  });
+  if (!r.ok) throw new Error(`storage ${bucket}/${path} ${r.status}`);
+  return Buffer.from(await r.arrayBuffer()).toString("latin1");
+}

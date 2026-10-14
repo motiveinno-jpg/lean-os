@@ -654,8 +654,10 @@ function ProgramDetail({ row, onClose, onSave, onDrop, onStatus, onOpenCard }: {
                         {c.spec.hint && <em>{c.spec.hint}</em>}
                       </span>
                       <span className="sp-doc-act">
-                        {(c.status === "have" || c.status === "stale") && c.file?.file_url && (
-                          <a href={c.file.file_url} target="_blank" rel="noreferrer noopener">열기 ↗</a>
+                        {(c.status === "have" || c.status === "stale") && c.file?.file_url && (c.file.locked
+                          //   잠긴 파일은 링크로 열면 잠긴 덩어리가 내려온다 — 비밀번호를 묻는 파일보관함에서 연다
+                          ? <Link href="/documents" title="비밀번호로 잠긴 파일입니다">파일보관함에서 열기 →</Link>
+                          : <a href={c.file.file_url} target="_blank" rel="noreferrer noopener">열기 ↗</a>
                         )}
                         {c.status === "ownerview" && c.spec.ownerview && (
                           <Link href={c.spec.ownerview.href}>가기 →</Link>

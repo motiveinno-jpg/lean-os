@@ -7460,6 +7460,7 @@ export type Database = {
           company_id: string
           created_at: string | null
           deal_id: string | null
+          encryption: Json | null
           document_id: string | null
           file_name: string
           file_size: number | null
@@ -7481,6 +7482,7 @@ export type Database = {
           company_id: string
           created_at?: string | null
           deal_id?: string | null
+          encryption?: Json | null
           document_id?: string | null
           file_name: string
           file_size?: number | null
@@ -7502,6 +7504,7 @@ export type Database = {
           company_id?: string
           created_at?: string | null
           deal_id?: string | null
+          encryption?: Json | null
           document_id?: string | null
           file_name?: string
           file_size?: number | null

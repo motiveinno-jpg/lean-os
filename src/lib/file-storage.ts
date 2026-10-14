@@ -12,6 +12,7 @@ import { logRead } from "@/lib/log-read";
 import { supabase } from "@/lib/supabase";
 import { assertStorageQuota } from "@/lib/storage-quota";
 import { logAudit } from "./audit";
+import { lockBytes, unlockBytes, type VaultLockMeta } from "./vault-crypto";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase;
@@ -41,6 +42,8 @@ interface UploadParams {
   userId: string;
   /** 큰 파일(6MB+) 이어올리기 진행률(0~100) — 화면이 "올리는 중 N%" 를 보여줄 때 */
   onProgress?: (pct: number) => void;
+  /** 잠가서 올리기 — 브라우저에서 이 비밀번호로 암호화한 덩어리만 올린다(비밀번호는 어디에도 저장하지 않는다) */
+  lockPassword?: string;
 }
 
 interface UploadResult {
@@ -347,15 +350,24 @@ async function attachSignedUrls<T extends { bucket?: string | null; storage_path
 // ── 1. Upload single file ──
 
 export async function uploadFile(params: UploadParams): Promise<UploadResult> {
-  const { companyId, bucket, file, context, category, tags, userId, register = false, onProgress } = params;
+  const { companyId, bucket, file: original, context, category, tags, userId, register = false, onProgress, lockPassword } = params;
 
-  // Validate
-  validateFile(file, bucket);
+  // Validate — 형식·크기 검사는 원본 기준
+  validateFile(original, bucket);
+
+  //   잠가서 올리기: 원본은 브라우저 밖으로 나가지 않는다. 올라가는 건 잠긴 덩어리(형식 정보 없음)
+  let file = original;
+  let encryption: VaultLockMeta | null = null;
+  if (lockPassword) {
+    const locked = await lockBytes(await original.arrayBuffer(), lockPassword, original.type);
+    file = new File([locked.data as BlobPart], original.name, { type: "application/octet-stream" });
+    encryption = locked.meta;
+  }
   // 회사 저장공간 한도 — 이 파일까지 더해 넘으면 숫자 들어간 안내로 끊는다(DB 게이트보다 먼저).
   await assertStorageQuota(companyId, file.size);
 
-  // Build storage path
-  const ext = getExtension(file.name);
+  // Build storage path — 잠긴 파일은 확장자로 형식이 드러나지 않게 .locked
+  const ext = encryption ? "locked" : getExtension(original.name);
   const basePath = buildStoragePath(companyId, context);
   const storagePath = `${basePath}.${ext}`;
 
@@ -411,16 +423,17 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
       deal_id: context?.dealId || null,
       vault_doc_id: context?.vaultDocId || null,
       folder_id: context?.folderId || null,
-      file_name: file.name,
+      file_name: original.name,
       file_url: urlData.publicUrl,
-      file_size: file.size,
-      mime_type: file.type,
+      file_size: original.size,
+      mime_type: original.type,
       storage_path: storagePath,
       bucket,
       category: category || null,
       tags: tags || [],
       version,
       uploaded_by: userId,
+      encryption: encryption as never,
     })
     .select()
     .single();
@@ -439,11 +452,12 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
     entityId: record.id,
     action: "file_uploaded",
     afterJson: {
-      fileName: file.name,
-      fileSize: file.size,
-      mimeType: file.type,
+      fileName: original.name,
+      fileSize: original.size,
+      mimeType: original.type,
       bucket,
       context,
+      locked: !!encryption,
     },
   }).catch(() => {});
 
@@ -456,12 +470,96 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
 
   return {
     id: record.id,
-    fileName: file.name,
+    fileName: original.name,
     fileUrl: urlData.publicUrl,
-    fileSize: file.size,
-    mimeType: file.type,
+    fileSize: original.size,
+    mimeType: original.type,
     storagePath,
   };
+}
+
+// ── 1b. 잠금(브라우저 암호화) — 파일보관함 ──
+//   잠그기·풀기는 실물을 새 경로에 올려 행을 바꾸고 옛 실물을 지운다(DB 가 경로 그대로 칸만 바꾸는 걸 막는다).
+//   지난 판도 같이 — 최신 판만 잠그면 지난 판 내려받기로 원본이 그대로 새어 나간다.
+
+type LockRow = { id: string; file_name: string; storage_path: string | null; bucket: string | null; mime_type: string | null; encryption: VaultLockMeta | null; version: number | null };
+
+async function lockFamily(fileId: string): Promise<LockRow[]> {
+  const { data, error } = await db.from("document_files")
+    .select("id, file_name, storage_path, bucket, mime_type, encryption, version")
+    .or(`id.eq.${fileId},parent_file_id.eq.${fileId}`);
+  if (error) throw error;
+  return (data || []) as unknown as LockRow[];
+}
+
+async function downloadObject(bucket: string, path: string): Promise<ArrayBuffer> {
+  const { data, error } = await supabase.storage.from(bucket).download(path);
+  if (error || !data) throw new Error("파일을 내려받지 못했습니다.");
+  return data.arrayBuffer();
+}
+
+//   실물 바꿔 끼우기 — 새로 올리고, 행을 바꾸고, 옛 것을 지운다. 행 바꾸기가 실패하면 새로 올린 것을 지운다.
+async function replaceObject(row: LockRow, body: Uint8Array | ArrayBuffer, ext: string, contentType: string, encryption: VaultLockMeta | null): Promise<void> {
+  const bucket = row.bucket || "document-files";
+  const oldPath = row.storage_path!;
+  const newPath = oldPath.replace(/[^/]+$/, `${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`);
+  const file = new File([body as BlobPart], row.file_name, { type: contentType });
+  if (file.size > RESUMABLE_THRESHOLD) await uploadResumable(bucket, newPath, file);
+  else {
+    const { error } = await supabase.storage.from(bucket).upload(newPath, file);
+    if (error) throw error;
+  }
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(newPath);
+  const { error: upErr } = await db.from("document_files")
+    .update({ storage_path: newPath, file_url: urlData.publicUrl, encryption: encryption as never })
+    .eq("id", row.id);
+  if (upErr) {
+    await supabase.storage.from(bucket).remove([newPath]).catch(() => {});
+    throw upErr;
+  }
+  await supabase.storage.from(bucket).remove([oldPath]).catch(() => {});
+}
+
+/** 파일(지난 판 포함)을 잠근다. 이미 잠긴 판은 그대로 둔다. */
+export async function lockVaultFile(fileId: string, password: string, ctx: { companyId: string; userId: string }): Promise<{ locked: number }> {
+  const rows = (await lockFamily(fileId)).filter((r) => !r.encryption && r.storage_path);
+  for (const r of rows) {
+    const plain = await downloadObject(r.bucket || "document-files", r.storage_path!);
+    const { data, meta } = await lockBytes(plain, password, r.mime_type || "");
+    await replaceObject(r, data, "locked", "application/octet-stream", meta);
+  }
+  logAudit({ companyId: ctx.companyId, userId: ctx.userId, entityType: "file", entityId: fileId, action: "file_locked", afterJson: { versions: rows.length } }).catch(() => {});
+  return { locked: rows.length };
+}
+
+/** 잠금을 푼다(원본으로 되돌려 저장). 비밀번호가 다른 판은 잠긴 채로 남기고 개수를 돌려준다. */
+export async function unlockVaultFile(fileId: string, password: string, ctx: { companyId: string; userId: string }): Promise<{ unlocked: number; wrong: number }> {
+  const rows = (await lockFamily(fileId)).filter((r) => r.encryption && r.storage_path);
+  let unlocked = 0, wrong = 0;
+  for (const r of rows) {
+    const enc = await downloadObject(r.bucket || "document-files", r.storage_path!);
+    let plain: ArrayBuffer;
+    try { plain = await unlockBytes(enc, password, r.encryption!.iter); }
+    catch (e) { if ((e as Error)?.name === "WrongPasswordError") { wrong++; continue; } throw e; }
+    await replaceObject(r, plain, getExtension(r.file_name), r.encryption!.mime || r.mime_type || "application/octet-stream", null);
+    unlocked++;
+  }
+  if (unlocked === 0 && wrong > 0) throw new Error("비밀번호가 맞지 않습니다.");
+  logAudit({ companyId: ctx.companyId, userId: ctx.userId, entityType: "file", entityId: fileId, action: "file_unlocked", afterJson: { versions: unlocked, wrong } }).catch(() => {});
+  return { unlocked, wrong };
+}
+
+/** 잠긴 파일을 비밀번호로 풀어 원래 이름으로 내려받는다(풀린 내용은 이 브라우저 안에만). */
+export async function downloadLockedFile(row: { id: string; file_name: string }, password: string): Promise<void> {
+  const [r] = (await lockFamily(row.id)).filter((x) => x.id === row.id);
+  if (!r?.storage_path || !r.encryption) throw new Error("잠긴 파일을 찾지 못했습니다.");
+  const enc = await downloadObject(r.bucket || "document-files", r.storage_path);
+  const plain = await unlockBytes(enc, password, r.encryption.iter);
+  const url = URL.createObjectURL(new Blob([plain], { type: r.encryption.mime || "application/octet-stream" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = row.file_name; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
 // ── 4b. 지난 판·사용량(결정 146) ──
@@ -469,7 +567,7 @@ export async function uploadFile(params: UploadParams): Promise<UploadResult> {
 /** 이 파일(최신 판)의 지난 판 목록 — 버전 내림차순, 열 수 있게 서명 URL 포함 */
 export async function getFileVersions(fileId: string): Promise<any[]> {
   const { data, error } = await db.from("document_files")
-    .select("id, file_name, file_size, version, created_at, storage_path, bucket, file_url, uploaded_by")
+    .select("id, file_name, file_size, version, created_at, storage_path, bucket, file_url, uploaded_by, encryption")
     .eq("parent_file_id", fileId)
     .order("version", { ascending: false });
   if (error) throw error;

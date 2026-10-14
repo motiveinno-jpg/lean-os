@@ -1,7 +1,7 @@
 // 핵심 흐름을 실제로 해 본다(QA 시드 회사). 만든 데이터는 이름이 SMOKE 로 시작하고, 시작 전·끝난 뒤 모두 지운다.
 import { test, expect } from "@playwright/test";
 import { createHash, randomBytes } from "node:crypto";
-import { BASE_URL, QA_COMPANY, SMOKE_TAG, rest, qaSession } from "./env";
+import { BASE_URL, QA_COMPANY, SMOKE_TAG, rest, qaSession, storageText } from "./env";
 import { openPage, expectHealthy } from "./helpers";
 import { cleanupSmokeData } from "./cleanup";
 
@@ -22,8 +22,50 @@ test("파일보관함 — 새 폴더(Enter) → 들어가기 → 파일 올리�
   await expect(row, "새 폴더가 목록에 나타나야 한다").toBeVisible({ timeout: 20_000 });
   await row.click();
   await expect(page.locator(".vx-crumb-last")).toHaveText(folder, { timeout: 15_000 });
-  await page.locator('.vx-tools input[type="file"]').setInputFiles({ name: `${SMOKE_TAG}-test.txt`, mimeType: "text/plain", buffer: Buffer.from(`smoke ${Date.now()}`) });
+  await page.getByLabel("올릴 파일 고르기", { exact: true }).setInputFiles({ name: `${SMOKE_TAG}-test.txt`, mimeType: "text/plain", buffer: Buffer.from(`smoke ${Date.now()}`) });
   await expect(page.locator(".vx-row", { hasText: `${SMOKE_TAG}-test.txt` }), "올린 파일이 폴더 안에 보여야 한다").toBeVisible({ timeout: 30_000 });
+});
+
+test("파일보관함 잠금 — 잠가서 올리기 → 저장본은 원문 아님 → 틀린/맞는 비밀번호 → 잠금 풀기", async ({ page }) => {
+  const info = await openPage(page, "/documents/");
+  await expectHealthy(page, "/documents/", info);
+  const name = `${SMOKE_TAG}-lock-${stamp()}.txt`;
+  const secret = `SMOKE-SECRET-${Date.now()}`;
+  const pw = "smoke-lock-pass-1";
+  await page.getByLabel("잠가서 올릴 파일 고르기").setInputFiles({ name, mimeType: "text/plain", buffer: Buffer.from(secret) });
+  await page.getByPlaceholder("비밀번호 (8자 이상)").fill(pw);
+  await page.getByPlaceholder("비밀번호 다시 입력").fill(pw);
+  await page.getByRole("button", { name: "잠가서 올리기", exact: true }).last().click();
+  const row = page.locator(".vx-row", { hasText: name });
+  await expect(row.locator(".vx-lock-mark"), "잠긴 파일 표시").toBeVisible({ timeout: 30_000 });
+
+  //   저장소에 올라간 것은 원문이 아니어야 한다(서버는 내용을 모른다)
+  const [rec] = await rest(`document_files?company_id=eq.${QA_COMPANY}&file_name=eq.${encodeURIComponent(name)}&select=id,storage_path,encryption`);
+  expect(rec?.encryption, "DB 에 잠금 정보").toBeTruthy();
+  expect(String(rec.storage_path), "저장 경로는 .locked").toMatch(/\.locked$/);
+  const raw = await storageText("document-files", rec.storage_path);
+  expect(raw.startsWith("OVLK1"), "잠긴 형식 머리").toBe(true);
+  expect(raw, "원문이 저장소에 없어야 한다").not.toContain(secret);
+
+  //   틀린 비밀번호 → 거절, 맞는 비밀번호 → 원문이 내려온다
+  await row.locator(".vx-file-title").click();
+  await page.getByPlaceholder("비밀번호", { exact: true }).fill("wrong-password");
+  await page.getByRole("button", { name: "열기", exact: true }).click();
+  await expect(page.locator(".vx-pw-err"), "틀린 비밀번호 안내").toHaveText("비밀번호가 맞지 않습니다.", { timeout: 20_000 });
+  await page.getByPlaceholder("비밀번호", { exact: true }).fill(pw);
+  const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 30_000 }), page.getByRole("button", { name: "열기", exact: true }).click()]);
+  const { readFile } = await import("node:fs/promises");
+  expect(await readFile(await dl.path()), "푼 내용이 원문과 같아야 한다").toEqual(Buffer.from(secret));
+
+  //   잠금 풀기 → 표시가 사라지고 저장본이 원문으로
+  await row.getByRole("button", { name: `${name} 파일 메뉴` }).click();
+  await page.getByRole("menuitem", { name: "잠금 풀기" }).click();
+  await page.getByPlaceholder("비밀번호", { exact: true }).fill(pw);
+  await page.getByRole("button", { name: "잠금 풀기", exact: true }).last().click();
+  await expect(row.locator(".vx-lock-mark"), "잠금 표시가 사라져야 한다").toHaveCount(0, { timeout: 30_000 });
+  const [after] = await rest(`document_files?id=eq.${rec.id}&select=storage_path,encryption`);
+  expect(after.encryption, "잠금 정보가 비워져야 한다").toBeNull();
+  expect(await storageText("document-files", after.storage_path), "풀린 저장본은 원문").toBe(secret);
 });
 
 test("거래처 — 등록 성공, 같은 사업자번호 재등록은 이유가 보이게 거절", async ({ page }) => {

@@ -158,17 +158,19 @@ export type CompanyFile = {
   folder: string | null;
   tags: string[] | null;
   created_at: string | null;
+  /** 비밀번호로 잠긴 파일 — 링크로 바로 열면 잠긴 덩어리가 내려온다. 파일보관함에서 연다 */
+  locked?: boolean;
 };
 
 export async function loadCompanyFiles(companyId: string): Promise<CompanyFile[]> {
   const data = await fetchPaged<any>("support-docs:company-files", () => supabase
     .from("document_files")
-    .select("id, file_name, file_url, tags, created_at, document_folders(name)")
+    .select("id, file_name, file_url, tags, created_at, encryption, document_folders(name)")
     .eq("company_id", companyId)
     .order("created_at", { ascending: false })
     .order("id"), 50000);
 
-  return ((data || []) as unknown as Array<CompanyFile & { document_folders?: { name?: string } | null }>)
+  return ((data || []) as unknown as Array<CompanyFile & { encryption?: unknown; document_folders?: { name?: string } | null }>)
     .map((f) => ({
       id: f.id,
       file_name: f.file_name,
@@ -176,6 +178,7 @@ export async function loadCompanyFiles(companyId: string): Promise<CompanyFile[]
       folder: f.document_folders?.name ?? null,
       tags: f.tags ?? null,
       created_at: f.created_at ?? null,
+      locked: !!f.encryption,
     }));
 }
 

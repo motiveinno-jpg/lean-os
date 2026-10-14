@@ -11623,3 +11623,10 @@ table.tir-items-table { min-width: 640px; }
 .sp-date-bad { @apply text-[11px] leading-4 font-semibold text-[var(--danger)]; }
 /* 원천세 환급세액 조정 표 (2026-10-14 세무 2차 7단계) — 칸 둘이라 좁게 */
 .rtf-refund { @apply mt-3; min-width: 0; max-width: 560px; }
+
+/* 파일보관함 잠금 — 잠긴 파일 표시·비밀번호 창 */
+.vx-lock-mark { @apply inline-flex items-center align-[-2px] mr-1 text-[var(--warning)]; }
+.vx-pw-warn { @apply mt-2 rounded-lg border border-[var(--warning)]/40 bg-[var(--warning)]/10 px-3 py-2 text-[12.5px] leading-relaxed text-[var(--text)]; }
+.vx-pw-form { @apply mt-3 flex flex-col gap-2; }
+.vx-pw-input { @apply w-full h-[38px] px-3 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-sm text-[var(--text)] outline-none focus:border-[var(--primary)]; }
+.vx-pw-err { @apply text-[12.5px] font-medium text-[var(--danger)]; }
