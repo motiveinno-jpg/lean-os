@@ -16,8 +16,9 @@ import { buildNtsFile, type NtsField, type NtsIssue } from "@/lib/nts-efile";
 export type WhtEfileRow = {
   /** 원천징수소득코드 — A01 근로 간이세액 · A10 근로 가감계 · A22 퇴직소득 그 외 · A20 퇴직소득 가감계(2026-10-07) ·
    *  A25 사업소득 매월징수 · A30 사업소득 가감계 · A99 총합계
-   *  2026-10-14 세무 2차 4단계: A03 일용근로 · A42 기타소득 그 외 · A40 기타소득 가감계 · A50 이자 · A60 배당 (규격 P32 코드표) */
-  code: "A01" | "A03" | "A10" | "A22" | "A20" | "A25" | "A30" | "A42" | "A40" | "A50" | "A60" | "A99";
+   *  2026-10-14 세무 2차 4단계: A03 일용근로 · A42 기타소득 그 외 · A40 기타소득 가감계 · A50 이자 · A60 배당 (규격 P32 코드표)
+   *  2026-10-14 연말정산 4단계: A04 연말정산 합계 · A06 연말정산 납부금액(분납 없음 → A04 와 같은 세액, 인원·지급액 입력 불가) */
+  code: "A01" | "A03" | "A04" | "A06" | "A10" | "A22" | "A20" | "A25" | "A30" | "A42" | "A40" | "A50" | "A60" | "A99";
   n: number; pay: number; tax: number;
 };
 export type WhtEfileInput = {
@@ -40,6 +41,10 @@ const digits = (s: string) => String(s || "").replace(/[^0-9]/g, "");
 
 const C = (name: string, len: number, value: string): NtsField => ({ name, len, type: "X", value });
 const N = (name: string, len: number, value: number): NtsField => ({ name, len, type: "9", value });
+/** 음수 가능한 숫자 칸 — 규격 '-00100'(부호가 폭 안에) */
+const S = (name: string, len: number, value: number): NtsField => ({ name, len, type: "9", value, sign: "minus" });
+/** 징수세액 음수가 허용되는 코드 (규격 3-6: A02·A04·A06·A20·A26·A46·A90) — 이 화면이 만드는 건 A04·A06 */
+const NEG_OK = new Set(["A04", "A06"]);
 
 /** '21' Header — 문서 누적 위치: 2,9,22,24,26,28,31,37,43,49,69,74,84,114,120,134,164,234,248,298,328,330,331~338,341,361,369,373,400 */
 function headerRecord(i: WhtEfileInput): NtsField[] {
@@ -66,7 +71,7 @@ function headerRecord(i: WhtEfileInput): NtsField[] {
     C("전자메일주소", 50, (i.email || "").trim()),
     C("성명(대표자명)", 30, i.ceoName.trim()),
     C("원천신고구분", 2, "01"),                    // 매월
-    C("연말정산여부", 1, "N"),
+    C("연말정산여부", 1, i.rows.some((r) => r.code === "A04" || r.code === "A06") ? "Y" : "N"),   // A04·A05·A06·A26·A46 중 하나라도 있으면 Y
     C("소득처분여부", 1, "N"),
     C("환급신청여부", 1, "N"),
     C("일괄납부여부", 1, "N"),
@@ -104,8 +109,8 @@ function adjustRecord(f: NonNullable<WhtEfileInput["refund"]> = { r12: 0, r13: 0
 }
 
 /** 당월 조정 환급세액(⑲)을 소득코드에 나눠 적는다 — 세부 코드 순서대로 그 코드 징수세액까지 채우고, 가감계·총합계는 합 (7단계) */
-const LEAVES = ["A01", "A03", "A22", "A25", "A42", "A50", "A60"] as const;
-const GROUP: Record<string, readonly string[]> = { A10: ["A01", "A03"], A20: ["A22"], A30: ["A25"], A40: ["A42"] };
+const LEAVES = ["A01", "A03", "A06", "A22", "A25", "A42", "A50", "A60"] as const;
+const GROUP: Record<string, readonly string[]> = { A10: ["A01", "A03", "A06"], A20: ["A22"], A30: ["A25"], A40: ["A42"] };
 export function allocateRefund(rows: WhtEfileRow[], r19: number): Record<string, number> {
   const out: Record<string, number> = {};
   let left = Math.max(0, r19);
@@ -126,11 +131,11 @@ function detailRecord(r: WhtEfileRow, adj = 0): NtsField[] {
     C("원천징수소득코드", 3, r.code),
     N("(4)인원", 15, r.n),
     N("(5)총지급액", 15, r.pay),
-    N("(6)징수세액-소득세등", 15, r.tax),
+    (NEG_OK.has(r.code) ? S : N)("(6)징수세액-소득세등", 15, r.tax),
     N("(7)징수세액-농특세", 15, 0),
     N("(8)가산세", 15, 0),
     N("(9)당월조정환급세액", 15, adj),
-    N("(10)납부세액-소득세등", 15, r.tax - adj),   // 가산세 0 → 납부세액 = 징수세액 − 당월 조정 환급
+    N("(10)납부세액-소득세등", 15, Math.max(0, r.tax - adj)),   // 가산세 0 → 납부세액 = 징수세액 − 당월 조정 환급 (환급(음수)인 A04·A06 은 0)
     N("(11)납부세액-농특세", 15, 0),
     C("공란", 18, ""),
   ];
@@ -149,8 +154,13 @@ export function buildWhtEfile(i: WhtEfileInput): { bytes: Uint8Array | null; fil
   for (const r of rows) {
     if (r.n > 0 && r.pay <= 0) issues.push({ field: r.code, message: "인원이 1명 이상이면 총지급액은 0보다 커야 합니다(규격 검증)" });
     if (r.n === 0 && r.pay > 0) issues.push({ field: r.code, message: "총지급액이 있으면 인원이 있어야 합니다(규격 검증)" });
-    if (r.tax < 0) issues.push({ field: r.code, message: "이 화면의 기본형(정기·매월)에서 음수 세액은 지원하지 않습니다. 홈택스에서 직접" });
+    if (r.tax < 0 && !NEG_OK.has(r.code)) issues.push({ field: r.code, message: r.code === "A10"
+      ? "연말정산 환급이 이 달 간이세액보다 커서 근로소득 가감계(A10)가 음수입니다. 규격상 A10 은 음수를 받지 않아 이 파일로 만들 수 없습니다 — 홈택스에서 직접 작성하세요"
+      : "이 화면의 기본형(정기·매월)에서 음수 세액은 지원하지 않습니다. 홈택스에서 직접" });
   }
+  //   연말정산 합계(A04) 인원·총지급액은 귀속·지급 2월(제출 3월) 신고에만 (규격 23번 표)
+  if (rows.some((r) => r.code === "A04" && (r.n > 0 || r.pay > 0)) && i.yearMonth.slice(5, 7) !== "02")
+    issues.push({ field: "A04", message: "연말정산(A04) 인원·총지급액은 2월 지급분 신고에만 넣을 수 있습니다(규격). 홈택스에서 직접 작성하세요" });
   if (issues.length > 0) return { bytes: null, fileName: "", issues };
   const adj = allocateRefund(rows, i.refund?.r19 || 0);
 

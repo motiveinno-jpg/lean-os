@@ -73,3 +73,18 @@ export const settle = (p: PayrollSummary | undefined, d: Deductions) => computeY
 });
 
 export const STATUS_LABEL: Record<YearEndStatus, string> = { draft: "작성 중", submitted: "제출됨", returned: "반려", confirmed: "확정" };
+
+/** 확정한 연말정산 — 원천세 A04(다음 해 2월 지급분)·연간 근로 지급명세서 결정세액이 읽는다 (2026-10-14 연말정산 4단계).
+ *  읽기는 RLS 가 마스터·급여 권한으로 좁힌다(급여 명세와 같다) — 권한이 없으면 빈 목록. */
+export type ConfirmedSettlement = { id: string; employee_id: string; result: YearEndResult; confirmed_at: string | null };
+export async function listConfirmed(companyId: string, year: number): Promise<ConfirmedSettlement[]> {
+  return (logRead("year-end:confirmed", await (supabase as any).from("year_end_settlements").select("id, employee_id, result, confirmed_at")
+    .eq("company_id", companyId).eq("year", year).eq("status", "confirmed").limit(2000)) || []) as ConfirmedSettlement[];
+}
+/** 원천세 A04 — 인원·연간 총급여(종전 포함)·차감징수 소득세(환급 음수)·지방소득세 */
+export function yearEndAgg(list: ConfirmedSettlement[]): { n: number; pay: number; tax: number; local: number } {
+  return list.reduce((a, s) => ({ n: a.n + 1, pay: a.pay + Number(s.result?.pay || 0), tax: a.tax + Number(s.result?.diff || 0), local: a.local + Number(s.result?.diffLocal || 0) }),
+    { n: 0, pay: 0, tax: 0, local: 0 });
+}
+/** 연말정산 반영 달 — 귀속연도 다음 해 2월 지급분(3/10 신고). 중도 퇴사자 정산(A02)·반기 신고는 다루지 않는다 */
+export const settleMonthOf = (year: number) => `${year + 1}-02`;

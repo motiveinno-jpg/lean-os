@@ -190,7 +190,8 @@ export default function EmployeesPage()  {
   const [insReport, setInsReport] = useState<"acquisition" | "loss" | null>(null);   // 4대보험 신고 파일 팝업
   const [todoOpen, setTodoOpen] = useState(false);
   //   증명서 탭 (2026-09-28 갈래 정리) — 보기 칩 [발급 이력 | 연말정산 자료], 발급 폼은 팝업. 두 층 탭·상자 안 상자를 피한다.
-  const [certView, setCertView] = useState<"logs" | "yearend">("logs");
+  //   ?view=yearend — 세무 신고 › 원천세 2월분 '인사에서 확정하기'(2026-10-14 연말정산 4단계)
+  const [certView, setCertView] = useState<"logs" | "yearend">(() => (sp?.get("view") === "yearend" ? "yearend" : "logs"));
   const [certIssueOpen, setCertIssueOpen] = useState(false);
   const { data: hrTodos, isLoading: todoLoading } = useQuery({ queryKey: ["hr-todos", companyId, todayKst(), employees.length], queryFn: () => fetchHrTodos(companyId!, employees), enabled: !!companyId && !isEmployee && employees.length > 0, staleTime: 120_000 });
   const { data: retireRows } = useQuery({ queryKey: ["retirement-est", companyId, todayKst()], queryFn: () => fetchRetirementEstimates(companyId!, todayKst()), enabled: !!companyId, staleTime: 300_000 });

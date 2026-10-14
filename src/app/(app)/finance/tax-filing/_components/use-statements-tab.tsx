@@ -9,7 +9,8 @@
 //   서류 = 조회 줄 「서류 ▾」 한 줄 셀렉트(두 층 탭 금지) — 고르면 기간 칸이 반기/월/연도로 바뀐다.
 //   마감 = 신고본(tax_returns kind simple_statement·annual_statement) — 사람마다 한 줄 숫자를 남기고, 바뀐 사람은 '수정 제출' 대상으로 보인다.
 //   주민번호: 구성원은 결정 108 RPC 로 엑셀 만드는 순간에만. 기타·이자·배당 받는 사람은 저장하지 않으므로 '세무사 기입' 빈 칸.
-//   자동으로 못 푸는 것: 연간 근로 지급명세서의 연말정산 결정세액(공제 서류) — 지급액·원천징수 합계까지, 결정세액은 세무사.
+//   연간 근로 지급명세서의 연말정산 결정세액: 2026-10-14 연말정산 4단계부터 인사에서 **확정한** 연말정산(year_end_settlements)이 있으면
+//   그 결정세액·차감징수세액을 채운다. 확정 안 한 사람은 빈 칸(세무사) — 추정치를 신고서에 넣지 않는다.
 //
 //   6단계(2026-10-14, 결정 264) — 4대보험 신고 3종을 같은 「서류 ▾」 '4대보험 신고' 묶음에:
 //   · 근로내용확인신고서(월): 일용 근무 기록을 **근무일** 기준으로(지급명세서는 지급일 기준). 근무한 날짜·일수·보수총액·일용 소득세. 다음 달 15일.
@@ -33,6 +34,7 @@ import { loadJobDefault, JOB_CODES } from "@/lib/insurance-edi";
 import { listRetirementPayments, type RetirementPayment } from "@/lib/retirement";
 import type { DailyLog, IncomePayment } from "@/lib/tax-forms/wht-income";
 import type { FormFigures } from "@/lib/tax-forms/vat-form";
+import { listConfirmed, type ConfirmedSettlement } from "@/lib/year-end-settlements";
 
 const won = (n: number) => `₩${Math.round(n || 0).toLocaleString("ko-KR")}`;
 const num = (n: number) => Math.round(n || 0);
@@ -61,7 +63,9 @@ export type StmtDoc = (typeof STMT_DOCS)[number]["key"];
 /** 한 사람 한 줄 */
 type Line = { key: string; name: string; sub?: string; employeeId?: string | null; n?: number; amount: number; nonTaxable?: number; tax: number; local: number; months?: Record<string, number>;
   /** 6단계 — 근무일(근로내용확인) · 취득/상실일·근무월수(보수총액) · 변경 전/후(보수월액) */
-  days?: string[]; wage?: number; hire?: string | null; resign?: string | null; before?: number; after?: number };
+  days?: string[]; wage?: number; hire?: string | null; resign?: string | null; before?: number; after?: number;
+  /** 연말정산 4단계 — 확정한 연말정산의 결정세액·차감징수세액(근로 연간만) */
+  decided?: number; diff?: number };
 const prevOf = (ym: string) => { const [y, m] = ym.split("-").map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; };
 
 export function useStatementsTab(p: {
@@ -115,7 +119,12 @@ export function useStatementsTab(p: {
       return new Map<string, { hire: string | null; resign: string | null }>(((data || []) as any[]).map((e) => [e.id, { hire: e.hire_date || null, resign: e.resignation_date ? String(e.resignation_date).slice(0, 10) : null }]));
     },
   });
-  const loading = (needPayroll && l1) || (doc === "sd" && l2) || (needIncome && l3) || (doc === "ar" && l4) || (needDailyWork && l5);
+  //   연말정산 4단계 — 확정본(급여 권한 RLS). 확정 안 한 사람은 결정세액 빈 칸
+  const { data: yeList = [], isLoading: l6 } = useQuery<ConfirmedSettlement[]>({
+    queryKey: ["year-end-confirmed", p.companyId, annualYear], enabled: !!p.companyId && p.enabled && doc === "aw",
+    queryFn: () => listConfirmed(p.companyId!, annualYear),
+  });
+  const loading = (doc === "aw" && l6) || (needPayroll && l1) || (doc === "sd" && l2) || (needIncome && l3) || (doc === "ar" && l4) || (needDailyWork && l5);
 
   //   사람마다 한 줄
   const lines = useMemo<Line[]>(() => {
@@ -174,8 +183,13 @@ export function useStatementsTab(p: {
       for (const r of pays.filter((x) => x.income_kind === kind && x.payee_kind === "person"))
         add(r.payee_name, { key: `payee:${r.payee_name}`, name: r.payee_name, n: 0 }, r.amount, r.income_tax, r.local_tax, (l) => { l.n = (l.n || 0) + 1; if (r.sub_kind && !l.sub) l.sub = r.sub_kind; });
     }
+    if (doc === "aw") for (const s of yeList) {
+      const l = byKey.get(s.employee_id); if (!l) continue;
+      l.decided = Number(s.result?.decided || 0); l.diff = Number(s.result?.diff || 0);
+    }
     return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, "ko"));
-  }, [doc, payroll, daily, rets, pays, dailyWork, empDates, months]);
+  }, [doc, payroll, daily, rets, pays, dailyWork, empDates, months, yeList]);
+  const yeDone = doc === "aw" ? lines.filter((l) => l.decided != null).length : 0;
   const tot = useMemo(() => ({ amount: lines.reduce((s, l) => s + l.amount, 0), tax: lines.reduce((s, l) => s + l.tax, 0), local: lines.reduce((s, l) => s + l.local, 0), n: lines.reduce((s, l) => s + (l.n || 0), 0) }), [lines]);
   const irpN = doc === "ar" ? rets.filter((x) => x.irp_deferred).length : 0;
 
@@ -271,15 +285,15 @@ export function useStatementsTab(p: {
     const idCol = (l: Line) => (l.employeeId ? rrn.get(l.employeeId) || "(미등록)" : "(세무사 기입)");
     const head = doc === "sw" ? ["이름", "주민등록번호", ...months.map((m) => `${Number(m.slice(5, 7))}월`), "합계"]
       : doc === "sd" ? ["이름", "주민등록번호", "근무일수", "과세 지급액", "비과세", "소득세", "지방소득세"]
-      : doc === "aw" ? ["이름", "주민등록번호", "과세 급여", "비과세", "기납부 소득세", "기납부 지방소득세", "결정세액(세무사)"]
+      : doc === "aw" ? ["이름", "주민등록번호", "과세 급여", "비과세", "기납부 소득세", "기납부 지방소득세", "결정세액", "차감징수세액(환급 −)"]
       : ["이름", "주민등록번호", ...(withN ? ["건수"] : []), "지급액", "소득세", "지방소득세", "비고"];
     const body = lines.map((l) => doc === "sw" ? [l.name, idCol(l), ...months.map((m) => num(l.months?.[m] || 0)), num(l.amount)]
       : doc === "sd" ? [l.name, idCol(l), l.n || 0, num(l.amount), num(l.nonTaxable || 0), num(l.tax), num(l.local)]
-      : doc === "aw" ? [l.name, idCol(l), num(l.amount), num(l.nonTaxable || 0), num(l.tax), num(l.local), ""]
+      : doc === "aw" ? [l.name, idCol(l), num(l.amount), num(l.nonTaxable || 0), num(l.tax), num(l.local), l.decided != null ? num(l.decided) : "(미확정 · 세무사)", l.diff != null ? num(l.diff) : ""]
       : [l.name, idCol(l), ...(withN ? [l.n || 0] : []), num(l.amount), num(l.tax), num(l.local), l.sub || ""]);
     const ws = XLSX.utils.aoa_to_sheet([[D.label, periodLabel, `제출 기한 ${due}`, "오너뷰 기록 기준"], [], head, ...body, [],
       ["※ 주민등록번호가 포함될 수 있는 파일입니다. 보관·전달에 주의하세요. (미등록)은 구성원 상세에서 입력, (세무사 기입)은 오너뷰가 저장하지 않는 번호입니다."],
-      ...(doc === "aw" ? [["※ 연말정산 결정세액은 공제 서류가 필요해 오너뷰가 계산하지 않습니다 — 세무사."]] : []),
+      ...(doc === "aw" ? [[`※ 결정세액은 인사 › 연말정산 자료에서 확정한 ${yeDone}명만 채웠습니다(규칙 2025년 귀속 기준 · 세무사 확인). (미확정)은 세무사 기입.`]] : []),
       ...(irpN ? [[`※ IRP 이전(과세이연) 퇴직금 ${irpN}건은 위에 없습니다 — 홈택스에서 직접.`]] : [])]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, D.label.slice(0, 30));
@@ -335,7 +349,7 @@ export function useStatementsTab(p: {
           : <>사람 {lines.length}명 · 지급액 {won(tot.amount)} · 소득세 {won(tot.tax)}</>}.
         {empIds.length > 0 && (rrnMissing > 0 ? <b className="vr-warn"> 주민번호 미등록 {rrnMissing}명은 구성원 상세에서 입력하세요.</b> : ` 주민번호 ${empIds.length}명 등록됨(엑셀에만 담깁니다).`)}
         {needIncome && " 받는 사람 주민번호는 저장하지 않습니다 — 엑셀에 세무사 기입 칸."}
-        {doc === "aw" && <b> 연말정산 결정세액은 공제 서류가 필요해 계산하지 않습니다 — 지급액·기납부 세액까지입니다.</b>}
+        {doc === "aw" && <b> 연말정산 결정세액은 인사에서 확정한 {yeDone}명만 채웁니다{lines.length - yeDone > 0 ? ` — 나머지 ${lines.length - yeDone}명은 세무사` : ""}.</b>}
         {insurance && <b> 엑셀은 신고서 칸 순서입니다 — 공단 EDI 업로드 양식이 아니라 옮겨 적거나 세무사·노무사에게 전달하는 용도입니다.</b>}
         {doc === "im" && " 일시적인 수당 때문에 달라진 사람은 낼 필요가 없습니다 — 고른 사람만 내세요."}
         {irpN > 0 && <b className="vr-warn"> IRP 이전(과세이연) {irpN}건은 빠졌습니다 — 홈택스에서 직접.</b>}
@@ -348,6 +362,22 @@ export function useStatementsTab(p: {
           : doc === "im" ? { amount: "변경 후 월 보수", tax: "변경 전 월 보수" }
           : { ...(withN ? { n: doc === "sd" ? "근무일수" : "건수" } : {}), amount: doc === "aw" ? "과세 급여" : "지급액", tax: doc === "aw" ? "기납부 소득세" : "소득세" }}
         compute={compute} sources={sources} schedules={schedules} loading={!!loading} />
+      {doc === "aw" && lines.length > 0 && (
+        <div className="pnl-panel">
+          <h3>연말정산 결정세액</h3><p>인사 › 증명서 › 연말정산 자료에서 확정한 결과입니다. 확정 안 한 사람은 비어 있습니다.</p>
+          <div className="stg-table-wrap vr-scroll">
+            <table className="ev-table ev-lined table-inv-status-sm">
+              <thead><tr><th>이름</th><th>과세 급여</th><th>기납부 소득세</th><th>결정세액</th><th>환급(−)·추징(+)</th></tr></thead>
+              <tbody>{lines.map((l) => (
+                <tr key={l.key}><td className="text-left">{l.name}{l.sub && <span className="ev-dim"> {l.sub}</span>}</td>
+                  <td className="tr mono-number">{won(l.amount)}</td><td className="tr mono-number">{won(l.tax)}</td>
+                  <td className="tr mono-number">{l.decided != null ? won(l.decided) : <span className="ev-dim">미확정</span>}</td>
+                  <td className="tr mono-number">{l.diff != null ? `${l.diff > 0 ? "+" : l.diff < 0 ? "−" : ""}${won(Math.abs(l.diff))}` : <span className="ev-dim">—</span>}</td></tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {doc === "sw" && lines.length > 0 && (
         <div className="pnl-panel">
           <h3>월별 명세</h3><p>인별 월 과세 지급액(서식 작성요령) — 엑셀도 이 모양입니다.</p>

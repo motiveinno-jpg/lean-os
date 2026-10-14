@@ -107,3 +107,36 @@ describe("buildWhtEfile — C103900 규격 바이트 대조", () => {
     expect(buildWhtEfile({ ...BASE, rows: [{ code: "A01", n: 1, pay: 100, tax: -5 }] }).issues.some((i) => i.message.includes("음수"))).toBe(true);
   });
 });
+
+// 연말정산 4단계 (2026-10-14) — A04 합계 + A06 납부금액, 연말정산여부 Y, 음수(환급)는 A04·A06 만
+describe("buildWhtEfile — 연말정산 A04·A06", () => {
+  const FEB: WhtEfileInput = {
+    ...BASE, yearMonth: "2027-02", submitYm: "2027-03",
+    rows: [
+      { code: "A01", n: 2, pay: 5_000_000, tax: 64_000 },
+      { code: "A04", n: 2, pay: 60_000_000, tax: -30_000 },
+      { code: "A06", n: 0, pay: 0, tax: -30_000 },
+      { code: "A10", n: 4, pay: 65_000_000, tax: 34_000 },
+      { code: "A99", n: 4, pay: 65_000_000, tax: 34_000 },
+    ],
+  };
+  it("Header 23번 연말정산여부 = Y (누적 331), 없으면 N", () => {
+    const b = buildWhtEfile(FEB).bytes!;
+    expect(asc(b, 330, 331)).toBe("Y");
+    expect(asc(buildWhtEfile(BASE).bytes!, 330, 331)).toBe("N");
+  });
+  it("A04 음수 세액은 '-' 부호가 폭 안에 (규격 '-00100'), 납부세액(10)은 0", () => {
+    const b = buildWhtEfile(FEB).bytes!;
+    const at = 400 + 2 + 200 + 2 + (150 + 2) * 1;   // 두 번째 명세 = A04
+    expect(asc(b, at + 9, at + 12)).toBe("A04");
+    expect(asc(b, at + 42, at + 57)).toBe("-00000000030000");
+    expect(asc(b, at + 102, at + 117)).toBe("000000000000000");
+  });
+  it("가감계(A10) 음수는 막는다 — 규격상 음수 허용 코드가 아님", () => {
+    const rows = FEB.rows.map((r) => (r.code === "A10" || r.code === "A99" ? { ...r, tax: r.code === "A10" ? -10_000 : 0 } : r));
+    expect(buildWhtEfile({ ...FEB, rows }).issues.some((i) => i.field === "A10")).toBe(true);
+  });
+  it("A04 인원·지급액은 2월 지급분에만", () => {
+    expect(buildWhtEfile({ ...FEB, yearMonth: "2027-03", submitYm: "2027-04" }).issues.some((i) => i.field === "A04")).toBe(true);
+  });
+});
