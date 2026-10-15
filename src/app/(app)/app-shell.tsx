@@ -1,5 +1,6 @@
 "use client";
 import { PopoverFit } from "@/components/popover-fit";
+import { ReconciliationFindingsDialog } from "@/components/reconciliation-findings-dialog";
 import { logRead } from "@/lib/log-read";
 
 import { useEffect, useState } from "react";
@@ -594,6 +595,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <div className="app-zoom"><AppContent>{children}</AppContent></div>
               {/*   떠서 열리는 칸(검색조건·달력·고르기 목록·메뉴)이 화면 밖으로 잘리지 않게 — 한 곳에서 전부 */}
               <PopoverFit />
+              {/*   숫자 대조·국세청 확인 알림(?findings=bank|nts)을 누르면 어느 화면에서든 결과 창 */}
+              <ReconciliationFindingsDialog />
             </GuideProvider>
           </PopupProvider>
           {/* 페이지 무관 백그라운드 sync chain — 어떤 페이지에서든 작동 */}
