@@ -111,8 +111,8 @@ export default function TeamPage() {
       const dataUrl = await toPng(node, {
         pixelRatio: 2,
         backgroundColor: !bg || bg === "rgba(0, 0, 0, 0)" ? "#ffffff" : bg,
-        // 저장 버튼 줄은 이미지에서 제외
-        filter: (el) => !(el instanceof HTMLElement && el.dataset?.orgExportExclude === "1"),
+        // 저장 버튼 줄·근무 상태(근무중·미출근 등)는 이미지에서 제외 — 상태는 그 순간의 것이라 보관용 조직도에 남기면 틀린 정보가 된다
+        filter: (el) => !(el instanceof HTMLElement && (el.dataset?.orgExportExclude === "1" || el.classList.contains("presence-chip-ro"))),
       });
       const a = document.createElement("a");
       const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
