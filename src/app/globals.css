@@ -11685,3 +11685,4 @@ table.tir-items-table { min-width: 640px; }
 .rf-actions { @apply mt-2 flex flex-wrap justify-end gap-2; }
 .rf-sep { @apply mt-1 text-[11.5px] font-semibold text-[var(--text-dim)]; }
 .rf-foot { @apply flex justify-end gap-2 px-5 py-3 border-t border-[var(--border)]; }
+.rf-row-amt { @apply shrink-0 font-semibold tabular-nums text-[var(--text)]; }

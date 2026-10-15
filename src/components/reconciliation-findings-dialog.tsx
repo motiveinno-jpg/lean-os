@@ -159,6 +159,7 @@ export function ReconciliationFindingsDialog() {
     return (
       <div key={id} className="rf-row">
         <span className="rf-row-tag">{i === 0 ? "먼저 들어온 줄" : "나중에 들어온 줄"}</span>
+        <span className="rf-row-amt">{r.transaction_date} · {won(r.amount)}</span>
         <span className="rf-row-main">
           {isCard ? `${r.card_name || "카드"} · ${r.merchant_name || "가맹점"} · 승인 ${r.approval_number || "-"}` : `${r.counterparty || "(예금주 없음)"} · ${r.description || "-"}`}
         </span>
