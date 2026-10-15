@@ -144,7 +144,7 @@ export default function TeamPage() {
       const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), margin = 10;
       const scale = Math.min((pw - margin * 2) / img.width, (ph - margin * 2) / img.height);
       const w = img.width * scale, h = img.height * scale;
-      pdf.addImage(dataUrl, "PNG", (pw - w) / 2, margin, w, h);
+      pdf.addImage(dataUrl, "PNG", (pw - w) / 2, margin, w, h, undefined, "FAST");   // 압축 없이는 한 장에 5MB 넘게 나왔다
       pdf.save(orgFileName("pdf"));
     } finally {
       setExporting(false);
