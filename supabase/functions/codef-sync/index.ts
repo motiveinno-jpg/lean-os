@@ -765,6 +765,9 @@ async function syncBankTransactions(
         const _bal = Number(tx.resAfterTranBalance || 0);
         const _trTime = tx.resAccountTrTime || "";
         // 결정적 dedup 키 — 같은 거래 재동기화 시 중복 삽입 방지 (DB UPDATE 백필과 동일 규칙)
+        //   ⚠ 마지막 칸(예금주)은 우리가 적요에서 '해석한' 값이다. 해석 규칙을 바꾸면(7/29: desc1||desc3 → desc1 만) 예전에 받은
+        //     거래를 다시 수집할 때 키가 달라져 같은 거래가 두 번 들어갔다(모티브 193쌍). 그래서 DB 는 앞 7칸(은행이 준 값만)으로
+        //     같은 거래를 판단한다(trg_bank_tx_skip_same_moment). 키에 해석한 값을 더 넣지 말 것.
         const externalId = [
           companyId, accountNo, tStr, _trTime, String(_amt), _type, String(_bal), counterparty,
         ].join("|");
@@ -781,7 +784,9 @@ async function syncBankTransactions(
           mapping_status: "unmapped",
           external_id: externalId,
           //   accountNo 는 마스킹하지 않는다 — 자동 연결 트리거·통장 탭·계좌 필터가 이 값으로 통장을 찾는다(마스킹했더니 9/7 이후 거래가 통장에 안 붙었다). 상대 계좌만 가린다.
-          raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: maskTail(tx.resCounterAccount || ""), descs: _descs },
+          //   descSlots = 적요 4칸을 자리 그대로(빈 칸 포함) — descs 는 빈 칸을 빼서 어느 칸에서 왔는지 잃는다(중복 원인 추적 때 못 가렸다)
+          raw_data: { accountNo, organization: org, trDate: tStr, trTime: _trTime, counterAccount: maskTail(tx.resCounterAccount || ""), descs: _descs,
+            descSlots: [tx.resAccountDesc1, tx.resAccountDesc2, tx.resAccountDesc3, tx.resAccountDesc4].map((d: any) => (d == null ? "" : String(d).trim())) },
         }, { onConflict: "external_id", ignoreDuplicates: true }).select("id");
 
         //   중복이라 건너뛴 행은 돌려주지 않는다 — 실제로 들어간 건만 센다("852건 받음" 이 매번 뜨던 것)
