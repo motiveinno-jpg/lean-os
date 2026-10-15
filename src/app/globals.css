@@ -11657,3 +11657,6 @@ table.tir-items-table { min-width: 640px; }
 .ye-pdf-note { @apply mt-0.5 text-[11px]; }
 .ye-pdf-select { @apply h-8 w-full min-w-[150px] text-xs; }
 .ye-pdf-sums { @apply flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--text-muted)]; }
+
+/* 근무 상태(근무중·미출근 등)는 그 순간의 것 — 인쇄·PDF 로 남기면 곧 틀린 정보가 된다(조직도 이미지 저장과 같은 기준) */
+@media print { .presence-chip-ro { display: none !important; } }
