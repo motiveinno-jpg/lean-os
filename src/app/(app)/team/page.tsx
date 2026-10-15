@@ -102,23 +102,50 @@ export default function TeamPage() {
   //   수동 캔버스 드로잉은 너무 촘촘하게 나왔다 → html-to-image 로 DOM 캡처, 간격·테마 화면과 동일).
   const orgChartRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
+  //   이미지·PDF 저장이 같은 캡처를 쓴다 — 빼는 것(저장 버튼·근무 상태)도 한 곳에서 정한다
+  const captureOrg = async (node: HTMLDivElement) => {
+    const bg = getComputedStyle(node.closest(".qk-screen") || node).backgroundColor;
+    return toPng(node, {
+        pixelRatio: 2,
+        backgroundColor: !bg || bg === "rgba(0, 0, 0, 0)" ? "#ffffff" : bg,
+        // 저장 버튼 줄·근무 상태(근무중·미출근 등)는 이미지에서 제외 — 상태는 그 순간의 것이라 보관용 조직도에 남기면 틀린 정보가 된다
+        filter: (el) => !(el instanceof HTMLElement && (el.dataset?.orgExportExclude === "1" || el.classList.contains("presence-chip-ro"))),
+    });
+  };
+  const orgFileName = (ext: string) => {
+    const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
+    return `조직도_${(companyName || "회사").replace(/[\\/:*?"<>|]/g, "")}_${day}.${ext}`;
+  };
   const exportOrgImage = async () => {
     const node = orgChartRef.current;
     if (!node || exporting) return;
     setExporting(true);
     try {
-      const bg = getComputedStyle(node.closest(".qk-screen") || node).backgroundColor;
-      const dataUrl = await toPng(node, {
-        pixelRatio: 2,
-        backgroundColor: !bg || bg === "rgba(0, 0, 0, 0)" ? "#ffffff" : bg,
-        // 저장 버튼 줄·근무 상태(근무중·미출근 등)는 이미지에서 제외 — 상태는 그 순간의 것이라 보관용 조직도에 남기면 틀린 정보가 된다
-        filter: (el) => !(el instanceof HTMLElement && (el.dataset?.orgExportExclude === "1" || el.classList.contains("presence-chip-ro"))),
-      });
       const a = document.createElement("a");
-      const day = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Seoul" });
-      a.href = dataUrl;
-      a.download = `조직도_${(companyName || "회사").replace(/[\\/:*?"<>|]/g, "")}_${day}.png`;
+      a.href = await captureOrg(node);
+      a.download = orgFileName("png");
       a.click();
+    } finally {
+      setExporting(false);
+    }
+  };
+  //   PDF — 이 화면은 인쇄 영역이 없어 브라우저 인쇄로는 빈 종이가 나온다. 이미지와 같은 캡처를 A4 한 장에 맞춰 담는다
+  const exportOrgPdf = async () => {
+    const node = orgChartRef.current;
+    if (!node || exporting) return;
+    setExporting(true);
+    try {
+      const dataUrl = await captureOrg(node);
+      const img = new Image();
+      await new Promise<void>((ok, bad) => { img.onload = () => ok(); img.onerror = () => bad(new Error("조직도 이미지를 만들지 못했습니다.")); img.src = dataUrl; });
+      const { jsPDF } = await import("jspdf");
+      const landscape = img.width >= img.height;
+      const pdf = new jsPDF({ orientation: landscape ? "landscape" : "portrait", unit: "mm", format: "a4" });
+      const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight(), margin = 10;
+      const scale = Math.min((pw - margin * 2) / img.width, (ph - margin * 2) / img.height);
+      const w = img.width * scale, h = img.height * scale;
+      pdf.addImage(dataUrl, "PNG", (pw - w) / 2, margin, w, h);
+      pdf.save(orgFileName("pdf"));
     } finally {
       setExporting(false);
     }
@@ -196,6 +223,9 @@ export default function TeamPage() {
                 <div className="self-end -mb-2" data-org-export-exclude="1">
                   <button type="button" onClick={exportOrgImage} disabled={exporting} className="btn-secondary btn-sm disabled:opacity-50">
                     {exporting ? "저장 중..." : "이미지 저장"}
+                  </button>
+                  <button type="button" onClick={exportOrgPdf} disabled={exporting} className="btn-secondary btn-sm disabled:opacity-50 ml-2">
+                    {exporting ? "저장 중..." : "PDF 저장"}
                   </button>
                 </div>
                 <div className="org-root">
